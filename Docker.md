@@ -4,6 +4,7 @@
 📚 1. Basics of Docker (Foundational Questions)
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ❓ 1. What is Docker, and why do we use it?
+
 Answer: Docker is a containerization platform that packages applications and their dependencies into isolated units called containers.
 Why:
 - Consistent environments (dev → prod)
@@ -19,6 +20,7 @@ Follow-up:
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 🔍 2. What are the benefits of using Docker over traditional virtualization (VMs)?
+
 Benefits of Docker over traditional VMs
 | Feature         | Docker                      | VMs                     |
 | --------------- | --------------------------- | ----------------------- |
@@ -34,6 +36,7 @@ Not by default. VMs offer stronger isolation. But Docker can be secured with too
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 📦 3. Difference between an Image and a Container
+
 Image: A blueprint (app + dependencies) – read-only
 Container: A running instance of an image – live and mutable
 
@@ -43,6 +46,7 @@ Yes. Each container is isolated but based on the same image.
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 🧱 4. What is the Docker Engine?
+
 Answer: Docker Engine is the core software that runs and manages containers. It has three parts:
 - Docker Daemon (dockerd) – manages containers
 - Docker CLI – command-line tool to talk to daemon
@@ -54,6 +58,7 @@ Yes, Docker CE (Community Edition) is open-source.
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 🔄 5. Docker container lifecycle
+
 | Stage         | Command                    | Description                     |
 | ------------- | -------------------------- | ------------------------------- |
 | Create        | `docker create nginx`      | Container defined, not started  |
@@ -70,6 +75,7 @@ You’ll get an error. You must stop it before removal (docker rm -f forcefully 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 🐳 6. What happens when you run docker run hello-world?
+
 Workflow:
 - CLI sends run command to Docker daemon
 - Daemon checks if hello-world image exists

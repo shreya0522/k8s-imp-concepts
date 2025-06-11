@@ -1,3 +1,6 @@
+# =========================================================================================================================================================
+# 🏗️ 1. Basic
+------------------------------------------------------------------------------------------------------------------------------------------------------------
 1. What is Kubernetes and how does it work?
 Kubernetes is a tool that helps you run and manage many containers across multiple servers. It handles scaling, deployment, and restarting containers automatically.
 
@@ -20,9 +23,9 @@ kubectl apply: Used to create or update a resource. Good for making changes.
 6. What is a Namespace and why is it used?
 A Namespace is a way to divide cluster resources between users or teams. It helps organize and manage large clusters.
 
-# ===============================================================================================================================================
-
-🏗️ 2. Architecture & Components
+# =========================================================================================================================================================
+# 🏗️ 2. Architecture & Components
+------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 🧱 1. Describe the Kubernetes architecture.
 Kubernetes has a Control Plane and Worker Nodes. The Control Plane manages the cluster.

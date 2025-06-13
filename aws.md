@@ -805,7 +805,7 @@ Q: Can you combine multiple scaling policies?
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-✅ 1. Cooldown Period (Core Concept)
+ ## ✅ 4. Cooldown Period (Core Concept)
 
 🔹 What is a Cooldown Period?
 A cooldown period is a waiting time after a scaling activity (scale-out or scale-in), during which no new scaling activities are allowed. This prevents rapid, repeated scaling which can lead to:
@@ -834,7 +834,7 @@ A cooldown period is a waiting time after a scaling activity (scale-out or scale
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-✅ 2. Warm-up Time (for Target Tracking)
+## ✅ 5. Warm-up Time (for Target Tracking)
 🔹 Purpose: When an instance is launched, it takes time before it becomes fully operational and starts serving traffic. If scaling policies read metrics too soon, you could trigger false scale-outs.
 
 🔧 Solution: "Warm-up Time" configuration
@@ -850,7 +850,7 @@ Time 0 → Launch EC2
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-✅ 3. Lifecycle Hooks
+## ✅ 6. Lifecycle Hooks
 Allows you to pause instance launch or terminate to run custom logic before proceeding.
 🔧 Use Case:  * Inject configuration | * Run security scans | * Save session data before termination
 
@@ -864,7 +864,7 @@ During the pause: - You can invoke a Lambda, SNS, or SQS | - Complete the hook v
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-✅ 4. Instance Refresh
+## ✅ 7. Instance Refresh
 Allows you to gradually replace running instances with updated AMIs, configs, or user data without downtime . Supported natively in ASG
 You define: * Batch size (e.g., 20%) | * Min healthy % | * Pause time between batches
 ✅ Better than deleting/replacing instances manually
@@ -879,9 +879,116 @@ A: Yes — cooldown controls ASG actions, while warm-up affects metric evaluatio
 3. Q: Can I bypass cooldown manually?
 A: ✅ Yes, via the AWS CLI: ```aws autoscaling set-desired-capacity --honor-cooldown false```
 
+================================================================================================================================================================================================================
 
+# EBS 
 
+1. Q: What happens to your EBS volume when you stop and then start your EC2 instance?
+A: * The EBS volume persists. It’s not deleted unless explicitly configured (DeleteOnTermination=False for root).
+   * Mount point (e.g., /dev/xvdf) remains the same.
+   * IP may change, but volume-device mapping is preserved.
+🧠 Trick here: Many assume “stop” = volume loss, but EBS is persistent.
 
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+2. Q: Can you attach a single EBS volume to multiple EC2 instances at the same time?
+A: ✅ Yes, only if using EBS Multi-Attach — but: * Only with io1/io2 volumes | *  Limited to Nitro-based EC2 instances | * File systems must be cluster-aware (e.g., Lustre, GFS2)
+❌ Traditional ext4 or XFS file systems will get corrupted if you mount the same volume as read-write from multiple EC2s.
+🧠 This is a common trap question to test Linux file system awareness.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+3. Q: You detached an EBS volume, reattached it to another EC2 instance, and now lsblk shows it, but it’s not mounting. Why?
+A: The mount point (/mnt/data) isn't automatically restored. You need to:
+ * Create a directory (if missing) ``` sudo mkdir /mnt/data```
+ * Mount manually: ``` sudo mount /dev/xvdf /mnt/data ```
+ * Also check: File system exists: sudo file -s /dev/xvdf
+If data is data, then it's unformatted → use mkfs.ext4
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+4. Q: Can you reduce (shrink) the size of an EBS volume on Linux?
+A:❌ No — AWS does not allow shrinking EBS volumes.
+🧠 Workaround:
+- Create a smaller new EBS volume
+- Attach it to EC2
+- rsync or dd data from old to new
+- Detach old, promote new as needed
+This tests Linux + AWS volume migration understanding.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+5. Q: You increased your EBS volume size via AWS Console, but df -h still shows old size. Why?
+A: You must resize the file system in Linux manually after increasing the EBS volume.
+```
+sudo growpart /dev/xvdf 1        # if partitioned
+sudo resize2fs /dev/xvdf1        # for ext4
+sudo xfs_growfs /mnt/data        # for XFS
+```
+📌 lsblk will show new size, but df -h reflects file system usage — which doesn’t grow automatically.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+6. Q: Can you take a snapshot of an EBS volume while it is mounted and in use?
+A: ✅ Yes — EBS supports crash-consistent snapshots even when in use. 🧠 But: File system might be inconsistent unless:
+You flush file system buffers: 
+``` sudo sync ```
+Or freeze file system (LVM or XFS):
+``` sudo fsfreeze -f /mnt/data ```
+This is often used in backup automation (common in Linux servers).
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+7. Q: Can you change the volume type of an existing EBS volume without downtime?
+A: ✅ Yes — using modify-volume API or console. AWS performs online transformation (e.g., gp2 → gp3 or io1 → io2), and your EC2 continues running.
+Command: ``` aws ec2 modify-volume --volume-id vol-abc123 --volume-type gp3 ```
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+8. Q: How do you securely erase an EBS volume before deleting it in Linux?
+A: Overwrite with zeroes: ```sudo dd if=/dev/zero of=/dev/xvdf bs=1M ```
+Or overwrite with random data: ```sudo shred -vzn 1 /dev/xvdf```
+📌 Remember: Deleting the volume only deletes the reference, not the data on AWS's storage layer. This tests security understanding.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+9. Q: You see a 30% I/O wait on a Linux EC2. How do you confirm it’s due to EBS bottleneck?
+A: Use tools like:
+```
+iostat -xz 1   # Check %util and await
+dstat -d
+iotop
+```
+✅ High await, svctime, or util = 100% indicate EBS saturation.
+You may need to:
+   * Move to io2 volume (higher IOPS)
+   * Distribute load over multiple volumes with RAID 0
+   * Use EBS-optimized EC2
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+10. Q: Difference between gp2 and gp3 volumes on Linux?
+| Feature            | gp2                           | gp3                                            |
+| ------------------ | ----------------------------- | ---------------------------------------------- |
+| Baseline IOPS      | Tied to size (3 IOPS per GiB) | **Fixed and configurable** (up to 16,000 IOPS) |
+| Throughput         | Up to 250 MB/s                | Up to **1,000 MB/s**                           |
+| Cost               | Higher                        | 20% cheaper                                    |
+| Performance tuning | ❌ Not tunable                 | ✅ IOPS and throughput tunable independently    |
+🧠 gp3 is better for workloads needing predictable and higher performance, e.g., PostgreSQL, MySQL, ElasticSearch.
+
+🎯 Bonus Real-World Scenario
+❓Scenario: You need to migrate an EC2 running a legacy app on /dev/xvdf to a new instance in another AZ. What's your approach?
+Answer:
+a- Stop app / flush fs: sync
+b- Take a snapshot of /dev/xvdf
+c- Create a new volume in target AZ from the snapshot
+d- Attach to new EC2 instance
+e- Mount and test:
+```
+sudo mkdir /mnt/appdata
+sudo mount /dev/xvdf /mnt/appdata
+```
+📌 Ensures minimal downtime and safe migration.
 
 
 

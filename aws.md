@@ -919,13 +919,55 @@ This tests Linux + AWS volume migration understanding.
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 5. Q: You increased your EBS volume size via AWS Console, but df -h still shows old size. Why?
-A: You must resize the file system in Linux manually after increasing the EBS volume.
+A. When you resize an EBS volume from the AWS Console or CLI:
+* The block device (/dev/xvdf) is resized immediately
+* But the file system on that device (ext4, xfs, etc.) is not automatically resized
+* So:
+* lsblk shows the new volume size (block-level)
+* But df -h (which shows file system size) still shows the old capacity
+
+🔧 Step-by-Step Fix (Linux): 
+Here’s how to safely resize your file system depending on how your volume is formatted.
+- ✅ Step 1: Confirm volume is resized
+```lsblk```
+Output might show:
 ```
-sudo growpart /dev/xvdf 1        # if partitioned
-sudo resize2fs /dev/xvdf1        # for ext4
-sudo xfs_growfs /mnt/data        # for XFS
+xvdf    202G
+└─xvdf1 100G
 ```
-📌 lsblk will show new size, but df -h reflects file system usage — which doesn’t grow automatically.
+→ Means the partition is still 100G, but the volume is 202G.
+
+✅ Step 2: Resize the partition (only if partitioned)
+* If your volume is partitioned (/dev/xvdf1 exists), you must grow the partition: ``` sudo growpart /dev/xvdf 1```
+* This uses cloud-utils-growpart to extend partition 1 on /dev/xvdf. ``` lsblk ``` Now both xvdf and xvdf1 should show 202G.
+
+✅ Step 3: Resize the file system:  Depending on the file system:
+🔹 For ext4:```sudo resize2fs /dev/xvdf1```
+This resizes the ext4 file system to occupy the new space.
+
+🔹 For XFS:
+XFS cannot be resized offline. You must mount the file system and use: 
+```
+sudo mount /dev/xvdf1 /mnt/data   # # If not mounted |  
+sudo xfs_growfs /mnt/data
+``` 
+You provide the mount point, not the device name, to xfs_growfs.
+
+🔁 Final Check: ``` df -h```
+Now you'll see the increased file system size reflected properly
+
+⚠️ Common Mistakes (that interviewers want you to say)
+| Mistake                                           | Why it’s wrong                                                        |
+| ------------------------------------------------- | --------------------------------------------------------------------- |
+| Run `resize2fs` before `growpart`                 | It won't work — file system is still bounded by the smaller partition |
+| Use `xfs_growfs /dev/xvdf1`                       | ❌ Wrong syntax — `xfs_growfs` expects a **mount point**, not device   |
+| Expect `df -h` to update after AWS Console resize | AWS only resizes the **block device**, not the file system            |
+
+
+💬 Bonus Interview Follow-Up
+Q: What happens if you try resizing the file system on a live production instance? Is it safe?
+A: Yes — both resize2fs and xfs_growfs support online resizing (no need to unmount).
+✅ This is safe on mounted file systems, but: * Always take a snapshot before resizing | * Ensure no I/O intensive workloads are running
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

@@ -1005,6 +1005,7 @@ A: ✅ Yes, using AttachInstances. But: ASG takes over its lifecycle , If that i
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 10. Difference between "scale-in" & "scale-out" event in asg?
+
 A. ✅ Difference Between Scale Out vs. Scale In in ASG
 | Feature             | **Scale Out**                       | **Scale In**                       |
 | ------------------- | ----------------------------------- | ---------------------------------- |
@@ -1113,7 +1114,7 @@ Combine On-Demand + Spot for better availability
 
 💬 Interview Summary
 "In Spot Instances, I use the 2-minute warning to flush logs, sync state to S3/DynamoDB, deregister from ALB, and gracefully shut down. I also configure EventBridge rules to trigger Lambda for automation. For resilience, I combine On-Demand + Spot in ASGs and use external session/data stores."
-
+iss case me aws abrptly hta dega to iss case me hm deregister kr dengy info milte he uss processs me jo existing request hogi usko complete kr lega koi new request le k ayega ni 
 
 
 
@@ -1252,6 +1253,7 @@ Always 3 running instances
   ↓
 Load spikes — no scaling occurs
 ```
+
 ✅ B. Dynamic Scaling
 Adjusts capacity automatically based on metrics, like CPU, memory, requests, queue length.
 🔸 Subtypes of Dynamic Scaling:
@@ -1298,8 +1300,7 @@ Old method — trigger action after a cooldown (no re-evaluation)
  - AWS replaced this with Target Tracking and Step Scaling
 
 ✅ C. Scheduled Scaling
-Predefined scaling based on time (like cron jobs)
-Example:
+Predefined scaling based on time (like cron jobs). Example:
  * Scale out to 10 instances at 9 AM (office hours)
  * Scale in to 2 instances at 10 PM
 Useful for:
@@ -1335,8 +1336,7 @@ Q: Can you combine multiple scaling policies?
  ## ✅ 4. Cooldown Period (Core Concept)
 
 🔹 What is a Cooldown Period?
-A cooldown period is a waiting time after a scaling activity (scale-out or scale-in), during which no new scaling activities are allowed. This prevents rapid, repeated scaling which can lead to:
-* Over-provisioning , * Cost spikes , * Application instability
+A cooldown period is a waiting time after a scaling activity (scale-out or scale-in), during which no new scaling activities are allowed. This prevents rapid, repeated scaling which can lead to:  * Over-provisioning , * Cost spikes , * Application instability
 
 🔧 Default Cooldown (Simple/Step Scaling)
 - Default: 300 seconds (5 minutes) | - During cooldown: ASG ignores further scaling triggers , Instance metrics are not evaluated
@@ -1357,7 +1357,7 @@ A cooldown period is a waiting time after a scaling activity (scale-out or scale
 - In step scaling, you can define a custom cooldown per policy, - More granular than global cooldown , - You can have aggressive cooldowns for scale-out (e.g. 60s) and conservative ones for scale-in (e.g. 300s)
 
 ✅ C. Target Tracking Cooldown (Built-in)
-- Doesn’t use traditional cooldown , - AWS manages an internal cooldown automatically - More responsive and intelligent → evaluates metrics continuously
+- Doesn’t use traditional cooldown , - AWS manages an internal cooldown automatically    - More responsive and intelligent  → evaluates metrics continuously
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -1378,8 +1378,7 @@ Time 0 → Launch EC2
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 ## ✅ 6. Lifecycle Hooks
-Allows you to pause instance launch or terminate to run custom logic before proceeding.
-🔧 Use Case:  * Inject configuration | * Run security scans | * Save session data before termination
+Allows you to pause instance launch or terminate to run custom logic before proceeding. 🔧 Use Case:  * Inject configuration | * Run security scans | * Save session data before termination
 
 🔁 Two types of hooks:
 | Hook Type                    | Purpose                           |
@@ -1392,7 +1391,7 @@ During the pause: - You can invoke a Lambda, SNS, or SQS | - Complete the hook v
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 ## ✅ 7. Instance Refresh
-Allows you to gradually replace running instances with updated AMIs, configs, or user data without downtime . Supported natively in ASG
+Allows you to gradually replace running instances with updated AMIs, configs, or user data without downtime . Supported natively in ASG. 
 You define: * Batch size (e.g., 20%) | * Min healthy % | * Pause time between batches
 ✅ Better than deleting/replacing instances manually
 

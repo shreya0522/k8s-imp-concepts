@@ -1932,8 +1932,8 @@ This means no filesystem exists yet. It’s like a brand-new USB drive—before 
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
- 12- ❓What if EC2-B is in another region (not just AZ)?
-In that case, you can’t directly create a volume from a snapshot in a different region — snapshots are region-wide only, not global.But AWS allows you to copy the snapshot to another region, and then create a volume from it.
+12- ❓What if EC2-B is in another region (not just AZ)?
+A- In that case, you can’t directly create a volume from a snapshot in a different region — snapshots are region-wide only, not global.But AWS allows you to copy the snapshot to another region, and then create a volume from it.
 
 🌎 Full Inter-Region EC2 EBS Volume Migration – Step-by-Step (Console Only)
 ✅ Use Case:
@@ -1979,6 +1979,92 @@ sudo file -s /dev/xvdf   # to check if formatted
 | 3    | Switch to new region in AWS Console    |
 | 4    | Create EBS volume from copied snapshot |
 | 5    | Attach volume to EC2-B, mount it       |
+
+=====================================================================================================================
+
+# Instane Store 
+--------------------------------
+Q.⚡️ First, What is Instance Store?
+Instance Store is temporary local storage physically attached to the host where your EC2 runs. It's very fast (NVMe or SSD), but non-persistent:
+* Data is lost on: Stop, terminate, or hardware failure     * Only available on specific instance types (like i3, d2, h1, c5d)
+
+🔍 Tricky Interview Questions on Instance Store
+
+🔹 Q1. Will data in instance store survive a reboot?
+✅ Yes Rebooting (via EC2 reboot or OS reboot) retains data But stopping/terminating the instance wipes it. 
+🧠 Interview Tip: Mention the exact lifecycle.
+🧠 **What if AWS reboots the instance and moves it to another host?**
+➤ In that case:
+❌ No, the instance store data is lost. Because the reboot is not a simple OS reboot, it is a host-level reboot initiated by AWS → which involves deallocating the current hardware.
+
+🛑 Real AWS Health Event Example:
+- 📣 “We are performing a maintenance reboot on your EC2 instance to apply critical security patches. Your instance will be moved to a different underlying host.”
+- 🔍 This sounds like a reboot, but it is effectively a Stop → Start, which means:
+          * New physical host        * Ephemeral storage is wiped      * Only EBS volumes survive this event
+
+🔹 Q2. Can I attach an instance store volume to another EC2?
+No , Instance store is physically attached to the host machine — It cannot be detached or moved like EBS.
+
+🔹 Q3. Can I back up an instance store volume using a snapshot?
+❌ Not directly like EBS . ✅ But you can
+```
+tar zcvf /mnt/ephemeral.tar.gz /mnt/instance-store
+aws s3 cp /mnt/ephemeral.tar.gz s3://my-backups/
+```
+📌 No snapshot API — must use manual backups
+
+ Q4. What happens if an EC2 with instance store is stopped and started again?
+🛑 Data is lost Because EC2 stop → detaches hardware → destroys data. Even if you restart on the same AMI, the new host doesn’t have your previous instance store data.
+
+🔹 Q5. Which instance types offer instance store volumes?
+✅ Only selected types — mostly high-throughput or storage-optimized: i3, i4i, d2, d3, h1, z1d, c5d, m5d, r5d
+- t3, t2, m4, c4, etc. do not support it. 📌 You must check instance type "Instance Store Volumes" in the AWS EC2 chart
+
+🔹 Q6. How do you ensure durability with instance store?
+You can't — so best practices:
+  - Use it only for cache, scratch, temp files, buffered logs
+  - Persist critical data to S3, EBS, or a database
+  - Setup a cron to back up at intervals if needed
+
+🔹 Q7. Can you use instance store as a boot volume?
+✅ Yes, for instance-store-backed AMIs (older AMIs)  ❌ Not common now — most AMIs are EBS-backed
+
+🔹 Q8. Does instance store affect AMI creation or launch time?
+✅ Yes, You cannot create an AMI snapshot from instance store. Launching instance-store-backed AMIs is faster, but less flexible
+
+🔹 Q9. What's faster: EBS or Instance Store?
+🏎️ Instance store is faster. 
+  - It’s physically local, low-latency, no network overhead
+  - Perfect for high-speed temporary workloads like:
+            * Caching layer     * Big data preprocessing     * ML training scratch space
+But it lacks: * Durability    * Flexibility     * Elasticity
+
+🔹 Q10. How do I detect instance store volumes inside Linux?
+```
+lsblk
+df -h
+ls /mnt
+```
+Instance store often shows as: ```/dev/nvme1n1 → /mnt```
+
+🧠 Final Interview Summary:
+"Instance store is ephemeral, host-attached storage ideal for fast temporary workloads like caching or scratch data. It's faster than EBS but non-persistent. I use it on i3 or c5d instances and always offload important data to S3 or EBS. I avoid using it for anything requiring durability."
+
+
+
+=====================================================================================================================
+
+# EC2
+
+
+
+
+
+
+=====================================================================================================================
+
+
+
 
 
 

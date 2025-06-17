@@ -1055,7 +1055,28 @@ Q6: What is the difference between ILM and SLM?
 🧠 Final Takeaway (What to Say in an Interview)
 > “ILM in Elasticsearch automates index transitions across hot, warm, cold, and delete phases based on data age or size. It’s critical for managing high-volume log data efficiently — optimizing storage, heap usage, and query performance. In production, we combine ILM with tiered nodes to scale Elasticsearch cost-effectively.”
 
+------------------------------------------------------------------------------------------------------
+# INDEX TEMPLATE 
 
+📦 What Is an Index Template?
+An index template defines how Elasticsearch should configure new indices that match a specific pattern (e.g. logs-*). It can include:
+* Settings (e.g., shards, replicas, ILM policy)
+* Mappings (field types)
+* Aliases
+* ILM configuration
 
+🎯 Goal: Apply ILM + Mapping + Settings Automatically
+We want:
+  - Index name: logs-*
+  - Use alias: logs-write (for rollover)
+  - Use ILM policy: logs_policy
+  - Start with index logs-000001
 
+✅ ILM is about the future behavior of an index.
+It plans what should happen to an index as it ages — where it lives, how it's stored, and when it gets deleted.
+
+🧠 Interview-Ready Statement
+“ILM in Elasticsearch is a policy-driven framework that plans what happens to an index in the future — based on its age or size. It doesn’t act immediately, but automatically triggers phase transitions (hot → warm → cold → delete) as time passes. This ensures long-term performance, cost control, and hands-free retention enforcement.”
+
+------------------------------------------------------------------------------------------------------
 

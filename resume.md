@@ -442,9 +442,155 @@ Let me know if you'd like to:
 * Or understand how `label_values()` works in more depth with [relabeling](f) and dynamic dashboards
 
 
+======================================================================================================================================================================
 
-
+# 2- Migrated S3 buckets from North Virginia to Mumbai region, ensuring data availability and compliance.
+I chose aws s3 sync because it’s simple, zero-cost, and quick to run using familiar CLI tools. While DataSync does offer extra features (ACL preservation, built-in validation, scheduling), setting it up—creating agents, permissions, IAM roles—introduced delays. For our use case, the benefits didn’t outweigh the setup overhead.
 
 ======================================================================================================================================================================
-# 2- Migrated S3 buckets from North Virginia to Mumbai region, ensuring data availability and compliance.
+
+# 3. Addressed diverse tasks, including resolving upstream issues, clearing server storage, fixing Jenkins pipeline errors, scaling servers, and mitigating 2-3 critical downtimes to ensure uninterrupted operations
+
+## nginx & upstream issue 
+
+In our production stack, traffic first hits an AWS ALB front door, then an NGINX-based API-gateway tier that forwards to a second layer of ALBs (booking, payments, etc.). Because Amazon load-balancers publish ephemeral IPs that can change at any time , NGINX occasionally cached an outdated address for an upstream and started returning “110: no host found” errors. 
+
+A) Root Cause — Stale DNS in NGINX
+| Symptom                                              | Technical Explanation                                                                                                                                                                                                                                                |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Intermittent 502/504 with `upstream timed out (110)` | Open-source NGINX **resolves the upstream hostname only once at worker start-up** and stores the resulting IP in memory([serverfault.com][1], [stackoverflow.com][2]).                                                                                               |
+| Why it broke                                         | Each internal ALB is addressed by a DNS name whose A-records can rotate at any moment for scaling or AZ failover([stackoverflow.com][3], [repost.aws][4]). When an ALB’s IP changed, NGINX kept sending traffic to the now-stale IP, triggering connection timeouts. |
+
+[1]: https://serverfault.com/questions/240476/how-to-force-nginx-to-resolve-dns-of-a-dynamic-hostname-everytime-when-doing-p?utm_source=chatgpt.com "How to force nginx to resolve DNS (of a dynamic hostname ..."
+[2]: https://stackoverflow.com/questions/26956979/error-with-ip-and-nginx-as-reverse-proxy?utm_source=chatgpt.com "Error with IP and Nginx as reverse proxy - Stack Overflow"
+[3]: https://stackoverflow.com/questions/3821333/does-amazon-ec2-elastic-load-balancers-ip-ever-change?utm_source=chatgpt.com "Does Amazon EC2 Elastic Load Balancer's IP ever Change?"
+[4]: https://repost.aws/questions/QUyjryn7t7SOOhYQDtpfR2pg/application-load-balancer-ip-change-event?utm_source=chatgpt.com "Application Load Balancer IP Change Event | AWS re:Post"
+
+
+B) Immediate Mitigation
+- Rebuilt NGINX with the dynamic upstream resolve patch (a third-party module that re-queries DNS on every health-check) to stop hard-caching addresses.
+- Added a resolver directive pointing to AmazonProvidedDNS so that DNS lookups respect TTLs
+Impact: Errors stopped, but the custom build created a maintenance burden and exposed an unrelated bug in that patch version.
+
+C) Permanent Fix — Upgrade to NGINX 1.27.3
+> From OSS 1.27.0 onward, NGINX native upstreams support the server <hostname> resolve; flag inside upstream blocks, dynamically re-resolving DNS without third-party modules. So I upgraded to NGINX 1.27.3 (the first stable build after the patch), removed the custom module, and set
+```
+upstream booking_backend {
+    zone booking 64k;
+    server booking-alb.internal resolve;
+}
+resolver 169.254.169.253 valid=10s;  # AmazonProvidedDNS
+```
+Each worker now refreshes the ALB’s IP list every 10 s (TTL-bound)
+
+D) How to Phrase It in the Interview
+Our API gateway (open-source NGINX) cached the IPs of internal ALBs. When AWS rotated those IPs, NGINX threw 110: no host found. I first hot-fixed the issue by recompiling NGINX with a dynamic-DNS module, then adopted the native server … resolve; feature in NGINX 1.27.3. That upgrade removed the custom patch, respected DNS TTLs, and permanently stopped upstream-resolution outages.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+## ✅  What is AWS Resolver?
+AWS Route 53 Resolver is the DNS service inside VPCs. It:
+- Resolves public DNS (like google.com)
+- Resolves private DNS (like internal-api.company.local)
+- Can be used by EC2, ECS, Lambda, etc
+- 🔹 Special IP Address : Inside every VPC, AWS provides a built-in DNS resolver at: ```169.254.169.253```  This is called the AmazonProvidedDNS. You can use this IP in /etc/resolv.conf or in NGINX resolver directives to resolve DNS inside the VPC.
+
+What are resolver and server … resolve; in NGINX?
+🔹 resolver in NGINX  Defines which DNS server NGINX should use for runtime lookups.Example: ```resolver 169.254.169.253 valid=10s;```   169.254.169.253 is AWS's internal DNS. valid=10s tells NGINX to cache DNS results for 10 seconds.
+🔹 ```server ... resolve; in NGINX``` This is used inside an upstream block to tell NGINX: “Don’t cache this server’s IP forever — re-resolve it periodically.”
+Example: This is available in NGINX 1.27.0+.
+```
+upstream backend_service {
+    server my-service.internal resolve;
+}
+```
+
+Interview Phrase
+"In AWS, I used resolver 169.254.169.253 in NGINX to resolve internal DNS names like ALBs. I combined that with server ... resolve; in upstream blocks (NGINX 1.27+) to make sure IPs were refreshed automatically. This prevented stale-DNS issues when ALB endpoints changed.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+## Incident Management (Downtime)
+
+ Elasticsearch Cluster Instability
+----------------------------------
+One of the major downtimes I resolved involved a persistent restart issue in our Elasticsearch cluster (v6.8). The cluster was unstable and kept flapping — nodes were disconnecting and reconnecting repeatedly, and indexing stopped. Upon analyzing the logs, I found multiple underlying root causes.”
+
+🔍 Root Cause 1: Split-Brain Scenario
+- Elasticsearch allows any master-eligible node to be elected as master.
+- Our discovery.zen.minimum_master_nodes was not configured, which led to split-brain — multiple nodes thought they were master.
+- As per official guidance, it should be set to: (number of master-eligible nodes / 2) + 1
+- In our case, we had 3 master-eligible nodes, so the value should’ve been: ```discovery.zen.minimum_master_nodes: 2```
+- Once configured and rolled out consistently, master election stabilized.
+
+🔍 Root Cause 2: Discovery Configuration Inconsistency
+- The parameter discovery.zen.ping.unicast.hosts was not consistently set across nodes.
+- Some nodes had missing or incorrect IPs of peer nodes.
+- This prevented proper cluster formation and caused intermittent network partitioning.
+- I corrected this by ensuring all master/data nodes had the same list of IPs:
+```
+discovery.zen.ping.unicast.hosts: ["172.30.6.121:9300","172.30.6.119:9300","172.30.6.22:9300","172.30.6.245:9300","172.30.6.169:9300"]
+```
+
+🔥 Secondary Failure: OOM Crashes
+- After the cluster stabilized, we faced another issue: OutOfMemoryErrors (OOM).
+- The heap was crashing under load, and I noticed:
+```
+-Xms8g
+-Xmx8g
+```
+Which was too low for our workload. According to Elastic best practices:
+- Heap size should be 50% of total RAM, but not more than 32GB. so I adjusted:
+
+✅ Interview Summary Line
+“I resolved a major production downtime involving Elasticsearch 6.8. The root cause was a split-brain issue due to missing minimum_master_nodes and inconsistent unicast.hosts. Once fixed, the cluster stabilized — but later hit OOMs, which I solved by increasing the Java heap size to 32GB. I also added alerting and documented the fix for future recovery.”
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+Amazon ElastiCache for Redis
+----------------------------
+🛑 Situation
+| Item                | Detail                                                                                                      |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Service**         | ElastiCache ( Redis cluster, single shard, in-memory store for sessions & API responses )                   |
+| **Symptom**         | *Primary node went “In‐Memory OOM”* → replica promotion loops → application latency spikes → partial outage |
+| **Immediate Cause** | Redis reported `ERR maxmemory limit reached` every few seconds; INFO command showed *memory almost 100 %*.  |
+
+🔎 Root-Cause Analysis
+1. No TTLs on many keys: The application team had recently introduced several new caches, but forgot to set EXPIRE. Keys piled up indefinitely; dataset size grew ~4 × in two days.
+2. Default eviction policy = noeviction (ElastiCache default). When memory was full, Redis refused writes instead of freeing space, triggering errors and failovers.
+3. Metrics Evidence:
+   - DatabaseMemoryUsagePercentage raced from 65 % → 98 %.
+   - CurrItems kept increasing; EvictedKeys remained 0.
+
+🛠️ Actions Taken
+| Step                                | Command / Setting                                                 | Purpose                                                                       |                                                        |
+| ----------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------ |
+| **1. Enabled automatic eviction**   | `maxmemory-policy allkeys-lru`                                    | Allow Redis to drop the **Least-Recently-Used** key when memory hits the cap. |                                                        |
+| **2. Added 20 % headroom**          | `reserved-memory 20` (ElastiCache parameter)                      | Avoid edge-case crashes during rehashing and failover.                        |                                                        |
+| **3. Kicked off immediate cleanup** | \`redis-cli --scan                                                | xargs redis-cli DEL\` (targeted large unused keys)                            | Lower memory pressure while policy change took effect. |
+| **4. Introduced key TTL standards** | Updated application code → `SET key value EX 1800`                | Ensure new writes disappear automatically after 30 min.                       |                                                        |
+| **5. Monitoring & Alerts**          | CloudWatch Alarm: `DatabaseMemoryUsagePercentage > 80% for 5 min` | Proactive notification before next incident.                                  |                                                        |
+
+✅ Result
+- Outage contained in ~15 minutes; writes resumed once LRU evicted cold data.
+- Long-term dataset stabilized at ~55 % utilisation.
+- No repeat OOMs in the following 6 months.
+
+📖 Lessons & Preventive Controls
+- Always pair SET with TTL – enforced via a helper wrapper in the codebase.
+- Select an eviction policy that matches workload (allkeys-lru > volatile-lru when app may overlook TTLs).
+- Capacity alarms with actionable runbooks (scale-up vs flush strategy).
+- Periodic keyspace review – INFO keyspace & MEMORY USAGE sampling to detect fat keys.
+
+30-Second Interview Summary
+“Our Redis-backed ElastiCache started throwing maxmemory errors because new keys were written without TTLs. With the default noeviction policy the cluster ran out of RAM, causing write failures and replica churn. I mitigated it by switching the parameter group to allkeys-lru, adding reserved-memory headroom, and bulk-deleting the heaviest cold keys. After the fire-fight I worked with developers to enforce TTLs in code and set CloudWatch alarms to prevent recurrence.”
+
+
+
+
+
+
+     
+
 

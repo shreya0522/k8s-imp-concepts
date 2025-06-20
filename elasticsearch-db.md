@@ -62,42 +62,45 @@
 | ✅ **Data Tiering in ES 7.10+**        | `hot`, `warm`, `cold`, `frozen`, `content`, `coordinating` roles |
 
 
-🧠 Sample Interview Questions from These Topics
+# 🧠 Sample Interview Questions from These Topics
+------------------------------------------------
+
 Q: What is the ideal heap size in Elasticsearch?
-A: 50% of system RAM, capped at 30–31 GB to preserve compressed oops (compressed object pointers). Going above disables it and doubles object size.
+Ans:
+-  50% of system RAM, capped at 30–31 GB to preserve compressed oops (compressed object pointers). Going above disables it and doubles object size.
+
+----------------------------------------------------------------------------------
 
 Q: What causes a red cluster? How do you troubleshoot it?
-A: Red = at least one primary shard is missing/unassigned
-Causes: disk full, corrupted index, node failure, bad shard allocation filters
-Troubleshooting:
- - GET _cat/health
- - GET _cat/shards
- - GET _cluster/allocation/explain
-Restore from snapshot if required
+A: 
+  - Red = at least one primary shard is missing/unassigned
+  - Causes: disk full, corrupted index, node failure, bad shard allocation filters
+  - Troubleshooting:
+        - GET _cat/health
+        - GET _cat/shards
+        - GET _cluster/allocation/explain
+  - Restore from snapshot if required
+
+----------------------------------------------------------------------------------
 
 Q: What is ILM and how does it help?
-A: ILM = Index Lifecycle Management.
-Used to automate:
+A: 
+- ILM = Index Lifecycle Management.
+- Used to automate:
   - Index rollover (e.g. daily logs)
   - Shrinking
   - Forcemerge
   - Delete after retention (e.g. 30 days)
   - Reduces manual index management, improves performance, avoids bloating.
 
+----------------------------------------------------------------------------------
+
 Q: How do you handle a node failure in a 3-node cluster?
+
 A:If quorum (2/3) is preserved → cluster is healthy or yellow
 Missing node’s shards will reallocate (if replicas exist)
 Monitor GET _cat/shards and logs for unassigned shards
 Fix disk/network/heap → restart node → it rejoins
-✅ Tip: What Makes a Good DevOps Elasticsearch Answer?
-Mention exact API or CLI command
-Show awareness of cluster behavior (e.g., shard movement, GC, master election)
-Always think in terms of HA, scalability, automation, security
-
-
-
-
-
 
 ============================================================================
 

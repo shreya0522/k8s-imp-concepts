@@ -2,33 +2,14 @@
 # 1- Developed an Ansible role to configure monitoring across 73 servers, significantly enhancing infrastructure observability and reducing manual effort.
 
 1. What was the purpose of the Ansible role you developed?
-I wrote the role to automate observability across all production hosts. Its immediate goal was to deploy Node Exporter to every running instance .  The most critical metric we needed right away was disk-space utilisation (several incidents had been caused by silent volume fill-ups),but the exporter also gave us CPU, memory, and networking insight.
+> I wrote the role to automate observability across all production hosts. Its immediate goal was to deploy Node Exporter to every running instance .  The most critical metric we needed right away was disk-space utilisation (several incidents had been caused by silent volume fill-ups),but the exporter also gave us CPU, memory, and networking insight.
 By codifying this in an Ansible role we eliminated repetitive, manual installs and ensured new servers were monitored automatically via our dynamic inventory.”
 
 2. What monitoring tool(s) did your role configure?
-Node Exporter on all Ubuntu application and database nodes (73 servers). Prometheus (scrape-target configuration + systemd service) and Grafana (provisioning of data-source and default dashboards)
+> Node Exporter on all Ubuntu application and database nodes (73 servers). Prometheus (scrape-target configuration + systemd service) and Grafana (provisioning of data-source and default dashboards)
 
-3. 4. How did you ensure the role was idempotent?
-A: by using idempotent modules like lineinfile , copy , file , apt , get_url module can be made idempotent if **checksum:** , unarchive module  is used with **creates:** or **checksum:** for idempotence
-*  Archive extraction used creates: so the task runs only when the binary isn’t there.
-       - Let’s say your Ansible role is extracting a Node Exporter .tar.gz file like this:
-  ```
-- name: Extract Node Exporter binary
-  unarchive:
-    src: /tmp/node_exporter.tar.gz
-    dest: /opt/node_exporter/
-    remote_src: yes
-  args:
-    creates: /opt/node_exporter/node_exporter
-```
-🔍 So What Does creates: Do?
-- Ansible checks if the file /opt/node_exporter/node_exporter already exists.
-- If it does exist, Ansible skips this task.
-- If it does not exist, Ansible runs the task to extract the archive.
-
-Why Is This Useful?
-It makes the role idempotent: Prevents unnecessary re-extraction every time you run the playbook.
-
+3. How did you ensure the role was idempotent?
+> A: by using idempotent modules like lineinfile , copy , file , apt , get_url module can be made idempotent 
 
 4. How did you structure your Ansible role?
 ```
@@ -55,6 +36,7 @@ roles/
 I keep defaults for sane global values, vars for anything driven by facts or inventory, and a single restart handler that individual tasks notify only when their template or package changes.
 
 5. What modules did you use in the role?
+```
 | Module                      | Why it was used                                                  |
 | --------------------------- | ---------------------------------------------------------------- |
 | `apt`                       | Install Node Exporter, Prometheus, Grafana (via official repos). |
@@ -64,14 +46,19 @@ I keep defaults for sane global values, vars for anything driven by facts or inv
 | `service` / `systemd`       | Enable & start services; control restarts through handlers.      |
 | `copy`                      | Ship pre-built Grafana dashboards JSON into `/var/lib/grafana/`. |
 | `command` (with `creates:`) | Reload Grafana provisioning API post-copy.                       |
+```
 
 6. Did you handle OS differences (Ubuntu vs RHEL)? How?
+```
 In this environment, all 73 nodes were running Ubuntu. However, the setup can be made flexible by using Ansible's gather_facts feature along "with" conditional logic based on the ansible_os_family variable.
+```
 
 7. Any challenge you faced ? 
+```
 One of the main challenges I faced while setting up monitoring was the diversity in Ubuntu versions across our infrastructure — we had servers ranging from Ubuntu 14.04 up to 22.04. This created compatibility issues, especially with system dependencies and service management (like systemd vs init.d). I had to carefully choose versions of Node Exporter, Prometheus, and Grafana that would work reliably across all these environments. In some cases, I used static binaries for Node Exporter to avoid package conflicts, and made sure the Ansible role handled service registration appropriately depending on the OS version.”
 OR 
 One challenge I faced in setting up monitoring was handling multiple Ubuntu versions (14.04 to 22.04). To ensure compatibility, I used static Node Exporter binaries and tailored the Ansible role for service management based on the OS version.
+```
 
 8. Architecture of node exporter , prometheus , grafana ?
 🏗️ Architecture: Node Exporter + Prometheus + Grafana
@@ -95,14 +82,16 @@ One challenge I faced in setting up monitoring was handling multiple Ubuntu vers
       │   Node Exporter   │        │    Node Exporter   │
       │   (Server A)      │        │    (Server B)      │
       └───────────────────┘        └────────────────────┘
-```
+
 🔹 A. Node Exporter (Installed on Each Monitored Server)
+-----------------------------------------------------------
 Purpose: Exposes hardware and OS-level metrics as HTTP endpoints (in Prometheus format). Examples of metrics:
 > CPU usage   > Memory   > Disk I/O   > Network  > Filesystem usage
 > Listens on: :9100 by default (e.g., http://server:9100/metrics)
 > Lightweight & stateless: No config, no DB, just exposes /metrics.
 
 🔹 B. Prometheus Server (Usually on Bastion or Monitoring Node)
+---------------------------------------------------------------
 * Purpose:
     > Pulls metrics from each Node Exporter every N seconds.
     > Stores all data as time-series in its own internal database (TSDB).
@@ -112,6 +101,7 @@ Purpose: Exposes hardware and OS-level metrics as HTTP endpoints (in Prometheus 
 * Also exposes metrics for itself (monitor Prometheus via Prometheus!).
 
 🔹 C. Grafana (Visualization Layer)
+------------------------------------
 * Purpose:
     > Connects to Prometheus as a data source.
     > Lets users create interactive dashboards and custom visualizations.
@@ -120,11 +110,16 @@ Purpose: Exposes hardware and OS-level metrics as HTTP endpoints (in Prometheus 
 * Provisioning: Can load dashboards and data sources via JSON or YAML templates.
 
 🔁 How They Work Together
+---------------------------
 - Node Exporter runs on each server → exposes metrics at /metrics.
 - Prometheus scrapes these metrics periodically and stores them.
 - Grafana reads from Prometheus to render beautiful graphs and dashboards.
 
+```
+
 9. How you would configure security groups (SGs) in a cloud environment
+
+```
 Let’s assume:
 suppose prometheus/grafana on bastion host & node exporter on all servers
 
@@ -142,20 +137,26 @@ suppose prometheus/grafana on bastion host & node exporter on all servers
 | Outbound  | Custom TCP | TCP      | `9100` | **Node Exporter SG**     | Scrape metrics from Node Exporters |
 
 🔐 Best Practices
+------------------
 - Avoid 0.0.0.0/0 on port 9100 — limit it to only Prometheus host.
 - Use Security Group references instead of raw IPs (e.g., "allow Bastion SG to access App SG on 9100").
 - Restrict access to Grafana UI (3000) and Prometheus UI (9090) to VPN or specific IPs.
 - Enable basic auth / reverse proxy / NGINX + TLS if exposing UIs.
 
 🧱 Diagram Summary
-```
+--------------------
+
 [Grafana:3000] <--- Your IP / VPN
 [Prometheus:9090] <--- Your IP / VPN
    |
    └─> [Node Exporter:9100] on each App/DB Server
+
+
 ```
 
-10. explain full workflow of set up that was done ?
+10. Explain full workflow of set up that was done ?
+
+```
 🧠 Full Flow Explained Simply (Your Setup)
 
 * Prometheus Setup:
@@ -178,8 +179,12 @@ suppose prometheus/grafana on bastion host & node exporter on all servers
 > Each alert rule is tied to a notification policy which links to the contact point.
 > Example: critical alerts go to Slack or email.
 
+```
+
 11. Relabelling concept and how it is used in our set up ?
+```
 🧠 What is Relabeling in Prometheus?
+---------------------------------------
 Relabeling is a way to transform metadata before it’s stored or scraped. Think of it as a filter or editor for labels — you can:
   - Add, remove, rename, or modify labels
   - Control which targets get scraped or how they're named
@@ -187,13 +192,14 @@ Relabeling is a way to transform metadata before it’s stored or scraped. Think
   - Relabeling happens at different stages:
           * Target relabeling: Before scraping, to modify the target's address or labels
           * Metric relabeling: After scraping, to modify labels on metrics themselves (less common)
-)
+
 
 🔍 Your Setup: Where Relabeling Happens
+----------------------------------------
 Your config:
-```
+----------------
 
-- job_name: 'ec2'
+- job_name: 'ec2'    -----
   ec2_sd_configs:
     - region: us-east-1
       filters:
@@ -207,255 +213,142 @@ Your config:
       target_label: server_name
     - source_labels: [__meta_ec2_instance_id]
       target_label: instance_id
-```
+
 
 Let’s explain this step-by-step
-🔗 EC2 SD (Service Discovery)
-This line: ``` ec2_sd_configs: ``` means Prometheus will dynamically discover all EC2 instances in the given region (here, us-east-1) with the filter you gave:
-```
-- name: "instance-state-name"
-  values: ["running"]
-```
-It only looks at instances in "running" state.
+--------------------------------
+1- job_name: 'ec2' 
+ This is the name of the job shown in Prometheus UI (/targets). You're scraping metrics from EC2 instances.
 
-For each discovered instance, Prometheus auto-assigns meta labels like:
-| Meta Label               | Example Value   |
-| ------------------------ | --------------- |
-| `__meta_ec2_private_ip`  | `172.31.25.100` |
-| `__meta_ec2_tag_Name`    | `blog-prod-01`  |
-| `__meta_ec2_instance_id` | `i-0abcd1234`   |
+2- ec2_sd_configs:
+    - region: us-east-1
+      filters:
+        - name: "instance-state-name"
+          values: ["running"]
 
-🔧 Then Comes Relabeling
-Now let’s map how each of your relabel_configs works:
+ This tells Prometheus to:
+    - Look for EC2 instances in us-east-1
+    - Only consider running instances (skip stopped or terminated)
 
-🔹 A. Replace __address__ with EC2 private IP + port
-```
-- source_labels: [__meta_ec2_private_ip]
-  target_label: __address__
-  replacement: "$1:9100"
-```
-* Prometheus expects a target like host:port
-* By default, it won’t know where Node Exporter is running
-* So this line says: “Take the private IP of the EC2 instance and assume metrics are on port 9100”
-* 🔍 Result: If EC2 private IP = 172.31.25.100, the target becomes: 172.31.25.100:9100
+3-   relabel_configs:
+    - source_labels: [__meta_ec2_private_ip]
+      target_label: __address__
+      replacement: "$1:9100"
 
-9100
+- This sets the scrape target IP and port: 
+   * Uses each instance's private IP
+   * Appends :9100, assuming Node Exporter runs on port 9100
 
-🔹 B. Add a label called server_name from the EC2 Name tag
-```
-- source_labels: [__meta_ec2_tag_Name]
-  target_label: server_name
-```
-- This means: “Attach the instance Name tag (like blog-prod-01) to the label server_name”
-- This is what shows up in your Grafana dropdown (Server variable)
+4- - source_labels: [__meta_ec2_tag_Name]
+     target_label: server_name
 
-🔹 C. Add a label for instance ID
-```
-- source_labels: [__meta_ec2_instance_id]
-  target_label: instance_id
-```
- - Adds a label like instance_id="i-0123456789abcd"
- - This is not directly used in your dashboards (maybe in alerts or traceability).
+This adds a label "server_name" to the target, based on the "EC2 tag Name"
+✅ Example:
+-  If the EC2 instance has a tag like: "Name": "web-server-prod"
+- Then Prometheus will attach: server_name="web-server-prod"
+
+5-  - source_labels: [__meta_ec2_instance_id]
+      target_label: instance_id
+
+Adds a label called instance_id to each target — useful to identify machines in Grafana or alerting.
+
+✅ Real-Life Example Summary:
+-----------------------------
+we used this config so Prometheus could automatically find all EC2 instances in us-east-1, scrape metrics from them (via port 9100), and attach useful labels like:
+ - Server name (from tags)
+ - Instance ID
+This helped us monitor 72+ EC2 instances without manually listing each one.
+
+
+--------------------------------------------------------------------------------------
 
 🖼️ In Grafana (as shown in your screenshot)
 Thanks to relabeling: You have dropdown filters like Server and Job in Grafana. These are populated using labels like server_name, which came from your EC2 instance tags via relabeling
 
+--------------------------------------------------------------------------------------
+
 🎯 Summary (For Interviews)
-"In our Prometheus setup, we used ec2_sd_configs to dynamically discover running EC2 instances. Then we applied relabeling to:
+----------------------------
+"In our Prometheus setup, we used ec2_sd_configs to dynamically discover "running EC2 instances". Then we applied "relabeling" to:
   - Set the correct scrape target using the instance’s private IP and port (Node Exporter on 9100)
-  - Extract the EC2 Name tag into a custom label server_name
-  - Add instance_id as a label for traceability.
+  - Extract the "EC2 Name tag" into a "custom label server_name"
+  - Add "instance_id" as a label for traceability.
 These relabeled values were used in Grafana to build dashboards with server dropdowns and targeted alert rules."
+```
+--------------------------------------------------------------------------------------------------------------
 
----------------------------------------------------------------------------------------------------------------------------------------------
+12. 📊 Variables in grafana dashbord 
+--------------------------------------
 
-Q- relabelling in my set up 
-Absolutely — let's go deeper step by step into **Prometheus relabeling**, how it connects to **EC2 service discovery**, and how Grafana variables like `$job`, `$node`, etc., work with those labels.
+You're using **Grafana + Prometheus** to monitor **EC2 servers** (like CPU, memory, etc.).
+You want your dashboard to let users **choose a server from a dropdown** — and then see graphs **just for that one**.
 
----
-
-## 🔁 Step 1: Prometheus EC2 Service Discovery + Relabeling
-
-Prometheus discovers EC2 instances using `ec2_sd_configs`. Here's a simplified version of what it might look like in your `prometheus.yml`:
-
-```yaml
-- job_name: 'node_exporter_ec2'
-  ec2_sd_configs:
-    - region: us-east-1
-      port: 9100
-      filters:
-        - name: tag:Monitoring
-          values: [enabled]
-  relabel_configs:
-    - source_labels: [__meta_ec2_private_ip]
-      target_label: __address__
-      replacement: $1:9100
-
-    - source_labels: [__meta_ec2_tag_Name]
-      target_label: server_name
-
-    - source_labels: [__meta_ec2_instance_id]
-      target_label: instance_id
 ```
 
-### 📌 What This Means
+🔧 How do we do this?
+---------------------
+* We use variables in Grafana — like `$job`, `$node`, `$ec2name`.
+* These act like filters or dropdowns in your dashboard.
 
-| Relabel Config                         | Purpose                                                        |
-| -------------------------------------- | -------------------------------------------------------------- |
-| `__meta_ec2_private_ip ➝ __address__`  | Sets target to `<private_ip>:9100` for scraping                |
-| `__meta_ec2_tag_Name ➝ server_name`    | Adds a new label called `server_name` using the EC2 tag `Name` |
-| `__meta_ec2_instance_id ➝ instance_id` | Adds the EC2 instance ID as a label                            |
-
-So, every time Prometheus scrapes metrics, each metric will look like:
-
-```txt
-node_cpu_seconds_total{job="node_exporter", instance="172.31.12.5:9100", server_name="prod-app-1", instance_id="i-1234abcd"}
-```
-
-These **labels become available in Grafana** as variables!
-
----
-
-## 🧩 Step 2: Grafana Variables
-
-You’ve defined these:
-
-### ✅ `job` variable
-
-```text
-label_values(up, job)
-```
-
-* Lists all jobs Prometheus is scraping (`node_exporter`, `blackbox`, etc.)
-* Used to filter all other variables
-
----
-
-### ✅ `node` variable
-
-```text
-label_values(node_uname_info{job="$job"}, nodename)
-```
-
-Here’s what this does:
-
-* Prometheus collects the `node_uname_info` metric from node\_exporter
-* That metric has a label `nodename` (which comes from the OS)
-* This variable lists **all nodenames** for the selected job
-
-Example:
-
-```txt
-node_uname_info{nodename="ubuntu18-blog-02", job="node_exporter", instance="172.31.1.2:9100"}
-```
-
-So the dropdown shows:
-
-```
-ubuntu18-blog-01
-ubuntu18-blog-02
-ubuntu-staging
-...
-```
-
-> You can then use `$node` in your dashboard panels to filter specific hosts.
-
----
-
-### ✅ `diskdevices` variable
-
-```text
-[a-z]+|nvme[0-9]+n[0-9]+|mmcblk[0-9]+
-```
-
-* This is a **regex variable** — not tied to any Prometheus metric directly
-* You’re probably using it inside a PromQL query like:
-
-  ```promql
-  node_disk_read_bytes_total{device=~"$diskdevices"}
-  ```
-
----
-
-## 🧠 Key Concept: Relabeling Makes Labels → Grafana Can Use Them!
-
-Prometheus does not scrape EC2 "name tags" by default. It scrapes metrics from `/metrics`, which don’t include that info. But with **`relabel_configs`**, you can inject that EC2 metadata (e.g., Name, instance ID) as labels.
-
-Grafana only sees **Prometheus labels**. So:
-
-* You inject `server_name` → now you can make a Grafana variable like:
-
-  ```text
-  label_values(up, server_name)
-  ```
-
-* You inject `instance_id` → now you can filter dashboards using EC2 IDs
-
----
-
-## 📊 How You Use Variables in Panels
-
-Say you make a CPU Usage panel with this query:
-
-```promql
+🧪 Example query:
+------------------
 rate(node_cpu_seconds_total{job="$job", nodename="$node", mode="user"}[5m])
+    
+* This query shows metrics for one EC2 server.
+* `$job` → lets user choose what kind of job (like `node_exporter`)
+* `$node` → lets user pick **which EC2 server** (by hostname or IP)
+
+So user selects from dropdowns:
+* Job → node\_exporter
+* Node → ip-172-31-0-12
+
+And Grafana shows metrics only for that EC2.
+
+📎 What about EC2 Name tag?
+------------------------------
+EC2 machines usually have a **Name** tag in AWS (like `web-prod-1`, `db-test-2`).
+Prometheus can fetch this using config:
+
+- source_labels: [__meta_ec2_tag_Name]
+  target_label: server_name
+
+This adds a label called `server_name` to each EC2 in Prometheus.
+
+✅ How to show EC2 Name in Grafana
+---------------------------------------
+* You can create a new dropdown variable in Grafana:
+
+* Name: `ec2name`
+* Query:   label_values(up{job="$job"}, server_name)
+  
+Now the user sees this dropdown:
+* Choose EC2 Name: [web-prod-1] [api-node] [db-prod]
+* And Grafana can use `$ec2name` to filter graphs.
+
+🧠 In Simple Words:
+-------------------
+* You create dropdowns using **Grafana variables**
+* You connect those to **labels in Prometheus**
+* Prometheus knows about EC2s and their tags like `server_name`
+* You use `$job`, `$node`, or `$ec2name` in queries to show only **what the user selects**
 ```
 
-Here:
-
-* `$job` controls which Prometheus job to scrape (ex: node\_exporter)
-* `$node` filters on hostname (from `nodename` label)
-
-Your user picks from the dropdowns → dashboard auto-filters.
-
----
-
-## 📎 Optional: Add EC2 `Name` tag as a Grafana variable
-
-If you added `server_name` in relabel configs, you can add this in Grafana:
-
-* Variable name: `ec2name`
-* Definition:
-
-  ```text
-  label_values(up{job="$job"}, server_name)
-  ```
-
-Then use `$ec2name` in your dashboards or in panel titles.
-
----
-
-## 🧩 Recap (End-to-End Flow)
-
-1. **EC2 instances are discovered** dynamically using `ec2_sd_configs`
-2. **Relabeling injects EC2 metadata** like tags into Prometheus labels
-3. **Prometheus scrapes metrics**, now enriched with labels like `server_name`, `instance_id`, `nodename`
-4. **Grafana uses those labels** to create templating variables
-5. **Dashboards dynamically filter** on job, node, disk device, etc.
-
----
-
-Let me know if you'd like to:
-
-* See a **real example of `prometheus.yml`** with relabeling
-* Add new Grafana variables for instance ID or `server_name`
-* Or understand how `label_values()` works in more depth with [relabeling](f) and dynamic dashboards
-
-
-======================================================================================================================================================================
+====================================================================================================
 
 # 2- Migrated S3 buckets from North Virginia to Mumbai region, ensuring data availability and compliance.
+```
 I chose aws s3 sync because it’s simple, zero-cost, and quick to run using familiar CLI tools. While DataSync does offer extra features (ACL preservation, built-in validation, scheduling), setting it up—creating agents, permissions, IAM roles—introduced delays. For our use case, the benefits didn’t outweigh the setup overhead.
-
-======================================================================================================================================================================
+```
+======================================================================================================
 
 # 3. Addressed diverse tasks, including resolving upstream issues, clearing server storage, fixing Jenkins pipeline errors, scaling servers, and mitigating 2-3 critical downtimes to ensure uninterrupted operations
 
-## nginx & upstream issue 
+## Nginx & upstream issue 
 
 In our production stack, traffic first hits an AWS ALB front door, then an NGINX-based API-gateway tier that forwards to a second layer of ALBs (booking, payments, etc.). Because Amazon load-balancers publish ephemeral IPs that can change at any time , NGINX occasionally cached an outdated address for an upstream and started returning “110: no host found” errors. 
 
 A) Root Cause — Stale DNS in NGINX
+------------------------------------
 | Symptom                                              | Technical Explanation                                                                                                                                                                                                                                                |
 | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Intermittent 502/504 with `upstream timed out (110)` | Open-source NGINX **resolves the upstream hostname only once at worker start-up** and stores the resulting IP in memory([serverfault.com][1], [stackoverflow.com][2]).                                                                                               |
@@ -468,23 +361,26 @@ A) Root Cause — Stale DNS in NGINX
 
 
 B) Immediate Mitigation
+------------------------------------
 - Rebuilt NGINX with the dynamic upstream resolve patch (a third-party module that re-queries DNS on every health-check) to stop hard-caching addresses.
 - Added a resolver directive pointing to AmazonProvidedDNS so that DNS lookups respect TTLs
 Impact: Errors stopped, but the custom build created a maintenance burden and exposed an unrelated bug in that patch version.
 
 C) Permanent Fix — Upgrade to NGINX 1.27.3
+------------------------------------------
 > From OSS 1.27.0 onward, NGINX native upstreams support the server <hostname> resolve; flag inside upstream blocks, dynamically re-resolving DNS without third-party modules. So I upgraded to NGINX 1.27.3 (the first stable build after the patch), removed the custom module, and set
 ```
 upstream booking_backend {
     zone booking 64k;
     server booking-alb.internal resolve;
 }
-resolver 169.254.169.253 valid=10s;  # AmazonProvidedDNS
-```
-Each worker now refreshes the ALB’s IP list every 10 s (TTL-bound)
 
-D) How to Phrase It in the Interview
-Our API gateway (open-source NGINX) cached the IPs of internal ALBs. When AWS rotated those IPs, NGINX threw 110: no host found. I first hot-fixed the issue by recompiling NGINX with a dynamic-DNS module, then adopted the native server … resolve; feature in NGINX 1.27.3. That upgrade removed the custom patch, respected DNS TTLs, and permanently stopped upstream-resolution outages.
+ resolver 169.254.169.253 valid=10s;  # AmazonProvidedDNS
+```
+> Each worker now refreshes the ALB’s IP list every 10 s (TTL-bound)
+
+D) How to Phrase It in the Interview ? 
+* Our API gateway (open-source NGINX) cached the IPs of internal ALBs. When AWS rotated those IPs, NGINX threw 110: no host found. I first hot-fixed the issue by recompiling NGINX with a dynamic-DNS module, then adopted the native server … resolve; feature in NGINX 1.27.3. That upgrade removed the custom patch, respected DNS TTLs, and permanently stopped upstream-resolution outages.
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -510,20 +406,24 @@ Interview Phrase
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------
 
-## Incident Management (Downtime)
-
- Elasticsearch Cluster Instability
+# Incident Management (Downtime)
 ----------------------------------
+
+#### Elasticsearch Cluster Instability
+--------------------------------------------
+
 One of the major downtimes I resolved involved a persistent restart issue in our Elasticsearch cluster (v6.8). The cluster was unstable and kept flapping — nodes were disconnecting and reconnecting repeatedly, and indexing stopped. Upon analyzing the logs, I found multiple underlying root causes.”
 
-🔍 Root Cause 1: Split-Brain Scenario
+#### 🔍 Root Cause 1: Split-Brain Scenario
+--------------------------------------------
 - Elasticsearch allows any master-eligible node to be elected as master.
 - Our discovery.zen.minimum_master_nodes was not configured, which led to split-brain — multiple nodes thought they were master.
 - As per official guidance, it should be set to: (number of master-eligible nodes / 2) + 1
 - In our case, we had 3 master-eligible nodes, so the value should’ve been: ```discovery.zen.minimum_master_nodes: 2```
 - Once configured and rolled out consistently, master election stabilized.
 
-🔍 Root Cause 2: Discovery Configuration Inconsistency
+#### 🔍 Root Cause 2: Discovery Configuration Inconsistency
+----------------------------------------------------------
 - The parameter discovery.zen.ping.unicast.hosts was not consistently set across nodes.
 - Some nodes had missing or incorrect IPs of peer nodes.
 - This prevented proper cluster formation and caused intermittent network partitioning.
@@ -532,7 +432,8 @@ One of the major downtimes I resolved involved a persistent restart issue in our
 discovery.zen.ping.unicast.hosts: ["172.30.6.121:9300","172.30.6.119:9300","172.30.6.22:9300","172.30.6.245:9300","172.30.6.169:9300"]
 ```
 
-🔥 Secondary Failure: OOM Crashes
+#### 🔥 Secondary Failure: OOM Crashes
+------------------------------------------
 - After the cluster stabilized, we faced another issue: OutOfMemoryErrors (OOM).
 - The heap was crashing under load, and I noticed:
 ```
@@ -542,28 +443,33 @@ discovery.zen.ping.unicast.hosts: ["172.30.6.121:9300","172.30.6.119:9300","172.
 Which was too low for our workload. According to Elastic best practices:
 - Heap size should be 50% of total RAM, but not more than 32GB. so I adjusted:
 
-✅ Interview Summary Line
-“I resolved a major production downtime involving Elasticsearch 6.8. The root cause was a split-brain issue due to missing minimum_master_nodes and inconsistent unicast.hosts. Once fixed, the cluster stabilized — but later hit OOMs, which I solved by increasing the Java heap size to 32GB. I also added alerting and documented the fix for future recovery.”
+#### ✅ Interview Summary Line
+> “I resolved a major production downtime involving Elasticsearch 6.8. The root cause was a split-brain issue due to missing minimum_master_nodes and inconsistent unicast.hosts. Once fixed, the cluster stabilized — but later hit OOMs, which I solved by increasing the Java heap size to 32GB. I also added alerting and documented the fix for future recovery.”
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------
 
-Amazon ElastiCache for Redis
+# Amazon ElastiCache for Redis
 ----------------------------
-🛑 Situation
+
+### 🛑 Situation
 | Item                | Detail                                                                                                      |
 | ------------------- | ----------------------------------------------------------------------------------------------------------- |
 | **Service**         | ElastiCache ( Redis cluster, single shard, in-memory store for sessions & API responses )                   |
 | **Symptom**         | *Primary node went “In‐Memory OOM”* → replica promotion loops → application latency spikes → partial outage |
 | **Immediate Cause** | Redis reported `ERR maxmemory limit reached` every few seconds; INFO command showed *memory almost 100 %*.  |
 
-🔎 Root-Cause Analysis
+### 🔎 Root-Cause Analysis
+```
 1. No TTLs on many keys: The application team had recently introduced several new caches, but forgot to set EXPIRE. Keys piled up indefinitely; dataset size grew ~4 × in two days.
+
 2. Default eviction policy = noeviction (ElastiCache default). When memory was full, Redis refused writes instead of freeing space, triggering errors and failovers.
+
 3. Metrics Evidence:
    - DatabaseMemoryUsagePercentage raced from 65 % → 98 %.
    - CurrItems kept increasing; EvictedKeys remained 0.
+```
 
-🛠️ Actions Taken
+### 🛠️ Actions Taken
 | Step                                | Command / Setting                                                 | Purpose                                                                       |                                                        |
 | ----------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------ |
 | **1. Enabled automatic eviction**   | `maxmemory-policy allkeys-lru`                                    | Allow Redis to drop the **Least-Recently-Used** key when memory hits the cap. |                                                        |
@@ -572,34 +478,36 @@ Amazon ElastiCache for Redis
 | **4. Introduced key TTL standards** | Updated application code → `SET key value EX 1800`                | Ensure new writes disappear automatically after 30 min.                       |                                                        |
 | **5. Monitoring & Alerts**          | CloudWatch Alarm: `DatabaseMemoryUsagePercentage > 80% for 5 min` | Proactive notification before next incident.                                  |                                                        |
 
-✅ Result
+### ✅ Result
 - Outage contained in ~15 minutes; writes resumed once LRU evicted cold data.
 - Long-term dataset stabilized at ~55 % utilisation.
 - No repeat OOMs in the following 6 months.
 
-📖 Lessons & Preventive Controls
+### 📖 Lessons & Preventive Controls
 - Always pair SET with TTL – enforced via a helper wrapper in the codebase.
 - Select an eviction policy that matches workload (allkeys-lru > volatile-lru when app may overlook TTLs).
 - Capacity alarms with actionable runbooks (scale-up vs flush strategy).
 - Periodic keyspace review – INFO keyspace & MEMORY USAGE sampling to detect fat keys.
 
-30-Second Interview Summary
+### 30-Second Interview Summary
 “Our Redis-backed ElastiCache started throwing maxmemory errors because new keys were written without TTLs. With the default noeviction policy the cluster ran out of RAM, causing write failures and replica churn. I mitigated it by switching the parameter group to allkeys-lru, adding reserved-memory headroom, and bulk-deleting the heaviest cold keys. After the fire-fight I worked with developers to enforce TTLs in code and set CloudWatch alarms to prevent recurrence.”
 
 
 ====================================================================================================
 
-## VPN 
+# VPN 
 
-✅ 1. What is a VPN and why is it used in DevOps or cloud setups?
- - A VPN (Virtual Private Network) is a secure, encrypted connection over the internet between a user/device and a private network. It creates a “tunnel” that hides data from outside parties.
- - 🔧 In DevOps and cloud environments, VPN is used to:
-              * Secure remote access to private infrastructure (e.g., EC2 instances, databases) not exposed to the public internet.
-              * Connect developers or ops teams to a private VPC/network.
-              * Allow cross-site or cross-region communication securely (e.g., between on-prem and AWS).
-              * Protect CI/CD pipelines when tools (like Jenkins) need to connect securely to remote environments.
+### ✅ 1. What is a VPN and why is it used in DevOps or cloud setups?
+- A VPN (Virtual Private Network) is a secure, encrypted connection over the internet between a user/device and a private network. It creates a “tunnel” that hides data from outside parties.
 
-✅ 2. What are the differences between site-to-site VPN and client-to-site VPN?
+- 🔧 In DevOps and cloud environments, VPN is used to:
+  * Secure remote access to private infrastructure (e.g., EC2 instances, databases) not exposed to the public internet.
+  * Connect developers or ops teams to a private VPC/network.
+  * Allow cross-site or cross-region communication securely (e.g., between on-prem and AWS).
+  * Protect CI/CD pipelines when tools (like Jenkins) need to connect securely to remote environments.
+  
+
+### ✅ 2. What are the differences between site-to-site VPN and client-to-site VPN?
 | Feature                 | Site-to-Site VPN                                    | Client-to-Site VPN                                 |
 | ----------------------- | --------------------------------------------------- | -------------------------------------------------- |
 | 🔗 **Connection Type**  | Connects **two networks** (e.g., AWS VPC ↔ On-prem) | Connects **individual users/devices** to a network |
@@ -659,6 +567,7 @@ Yes, here’s the workflow:
 * Added a route in the VPC route table to forward traffic for Azure subnet via the EC2 instance. 
      - in route table in **destination field** entered the cidr of azure vnet . This CIDR blocks specifies the range if IP addresses assigned to azure vnet 
      - in **target field** select **instance** and then choose the instance ID of the server where strongswan is installed. This indicates that specified destination cidr block should be reachable via the selected ec2 instance  
+   > Whenever someone in my VPC wants to talk to something in Azure (like 10.1.x.x), send that traffic through my VPN EC2 instance — it’ll handle the connection to Azure
 
 #### On **Azure Side**:
 
@@ -901,6 +810,20 @@ Yes:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ======================================================================================
 
 # Created Ansible roles for configuring a PostgreSQL cluster with automatic failover using Patroni and  HAProxy, ensuring high availability and reliability of database services.
@@ -912,7 +835,7 @@ Yes:
                      │ psql / Python / Grafana  │
                      └──────────┬───────────────┘
                                 │  (TCP 5000 SQL)
-                       Read/Write│
+                      Read/Write│
                                 ▼
                         ┌─────────────┐
                         │   HAProxy   │
@@ -942,36 +865,50 @@ Yes:
 | **Solid line**  | SQL traffic (clients ↔ leader)                                  |
 | **Dashed line** | Control-plane traffic (health checks, leader-election, metrics) |
 
+```
+INTERVIEW ANSWER
+------------------
+I set up a highly available PostgreSQL cluster using Patroni, HAProxy, and etcd, automated through Ansible roles.
+The architecture had three PostgreSQL nodes managed by Patroni, with etcd for leader election and HAProxy as a load balancer.
 
-#### 1️⃣ Client side
+Applications connected to HAProxy on port 5000, which always forwarded SQL traffic to the current leader node.
+Patroni exposed health endpoints on each node, and HAProxy used these to detect which node was the primary.
+Failover was automatic — if the leader crashed, Patroni would detect it via etcd, trigger a new election, and HAProxy would route traffic to the new primary.
+
+I also configured settings like use_pg_rewind so that old leaders could rejoin the cluster quickly after failover, without a full resync.
+This setup ensured minimal downtime and automatic failover, without needing manual intervention or affecting the app layer.
+
+
+```
+1️⃣ Client side
+-----------------
 • Who?
 > psql, ORM libraries, BI tools, Grafana dashboards—anything that speaks PostgreSQL.
 
 • What do they do?
 > They open a single connection to haproxy:5000. They never need to know which node is currently primary.
 
-#### 2️⃣ HAProxy (Layer-4 TCP load balancer)
+2️⃣ HAProxy (Layer-4 TCP load balancer)
+---------------------------------------
 | Port     | Purpose                                                                         |
 | -------- | ------------------------------------------------------------------------------- |
 | **5000** | Front-end for SQL; forwards to whichever backend node reports “I’m the leader.” |
 | **7000** | Optional stats UI for health visualization.                                     |
 
-###### Health detection workflow
+##### Health detection workflow
+- Every 3 s (inter 3s) HAProxy calls ```http://<node>:8008/health``` (Patroni’s REST endpoint).
+- Only the primary returns HTTP 200. Replicas reply 503.
+- HAProxy marks one and only one backend UP; all traffic rides that connection.
 
-Every 3 s (inter 3s) HAProxy calls ```http://<node>:8008/health``` (Patroni’s REST endpoint).
-
-Only the primary returns HTTP 200. Replicas reply 503.
-
-HAProxy marks one and only one backend UP; all traffic rides that connection.
-
-#### 3️⃣ Patroni-managed Postgres nodes
+3️⃣ Patroni-managed Postgres nodes
+-------------------------------------
 
 | Component        | Port     | Function                         |
 | ---------------- | -------- | -------------------------------- |
 | **PostgreSQL**   | **5432** | Regular SQL service.             |
 | **Patroni REST** | **8008** | Health, switchover, reconfigure. |
 
-What Patroni does every 10 s (loop_wait)
+#### What Patroni does every 10 s (loop_wait)
 - Reads the cluster key in etcd.
 - If it is the leader, it updates the TTL (ttl: 30 s).
 - If TTL expires, replicas start a new election.

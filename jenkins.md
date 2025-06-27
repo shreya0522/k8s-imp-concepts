@@ -146,3 +146,33 @@ node {
 > “Declarative pipelines are structured and safe for most use cases, while scripted pipelines are Groovy-based and give you more control but are harder to manage and debug.”
 
 Let me know if you want real-world scenarios for when to prefer each.
+
+
+
+jenkins agent configure 
+jenkins pipeline  
+  - ecr login 
+  - kon sa tag ka image 
+  - kubeconfige configure hona chaiye for jenkins to be reachable 
+  - kubectl set image deployment imgname ns  
+
+  ------------------------------------------
+
+  kubeconfig 
+
+  ------------------------------------------
+
+  ansible fetch secrets 
+
+  ------------------------------------
+
+  ingres class ... diff nginx ingres class and alb ingres class
+
+  ----------------------------
+  ingre class - alb 
+  jb mai alb ingres create krte h to load balancer wo kaise craete krta h alb amd rules or targets kaise create krta h 
+
+annotation hote h like vpc , subnet , sg 
+  -----------------------------------------
+
+  reserved hosts , nat

@@ -150,7 +150,7 @@ A:
 | Use Case     | Web apps, Microservices | High-throughput, gaming, IoT |
 
 Q: How does a load balancer perform health checks?
-A: It sends periodic HTTP (or TCP) requests to a predefined endpoint (e.g., /healthcheck) on each target. If it fails multiple times, that instance is marked unhealthy and traffic is stopped.
+A: It sends periodic HTTP (or TCP) requests to a predefined endpoint (e.g., /healthcheck) on each target. If it fails multiple times, that instance is marked unhealthy and traffic is stopped. (if 1 out of 2 instance is running but when 2/2 instance are marked unhealthy then it starts sending traffic to both )
 
 Q: Can one Load Balancer span multiple Availability Zones?
 A: Yes. AWS Load Balancers are multi-AZ by design, enhancing fault tolerance and high availability.
@@ -667,6 +667,8 @@ A: ✅ Yes — as long as: * You registered targets in multiple AZs , * Your DNS
 
 Q 18. Does ALB support Cross-Region Load Balancing?
 A: ❌ No — ALB does not support Cross-Region Load Balancing natively.  ALB is region-scoped:  It can only route traffic to targets in the same region. Even if your target has a public IP in another region — ALB cannot use it.
+With ALBs, cross‑zone load balancing is always on by default, ensuring traffic is spread evenly across all registered targets, even across zones. For NLBs and Classic LBs, it's off by default when created via API/CLI.
+
 ✅ How to Achieve Cross-Region Load Balancing : Use either of the following in front of ALBs deployed in multiple regions:
 | Option                     | Description                                                           | Use Case                         |
 | -------------------------- | --------------------------------------------------------------------- | -------------------------------- |

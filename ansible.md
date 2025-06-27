@@ -966,3 +966,68 @@ I use roles to keep playbooks clean and maintainable — especially in large pro
 
 # Secrets in Ansible  ? 
 WATCH VIDEO
+
+
+# 5 Config in Ansible 
+----------------------
+
+1- host_key_checking
+------------------------- 
+**If host_key_checking = **True** (default):**
+It will fail with an error if that host's key is not already in known_hosts
+It won’t prompt for yes/no because Ansible runs non-interactively
+
+**If host_key_checking = **False**:**
+Ansible will automatically accept that host's key
+It won’t ask anything and will connect right away
+It skips the prompt just like you answered “yes” in advance
+
+2- forks = 5
+----------------
+n Ansible, a fork refers to a separate process that runs in parallel to execute tasks on remote hosts.
+When Ansible runs a playbook, it doesn't execute tasks on all hosts one-by-one. Instead, it creates multiple forks (parallel connections) to run tasks on multiple hosts at the same time.
+
+🧠 Suppose: You have 10 host , And your ansible.cfg is set like this: ```forks = 5``` 
+And your playbook contains:
+```
+tasks:
+  - name: Task 1
+    shell: echo "Hello"
+
+  - name: Task 2
+    shell: echo "World"
+
+```
+🔁 What happens?
+🔹 Task 1 execution:
+Ansible will run Task 1 on 5 hosts at once (forks = 5) .
+When those 5 are done, it runs Task 1 on the next 5:
+🔹 Then Task 2 begins (same pattern):
+Task 2 → runs on host1 to host5 (parallel)
+Then on host6 to host10
+🔁 It’s parallel per task, and batch size = forks.
+
+3- inventory	
+--------------
+Default path to inventory file (e.g. inventory.ini)
+
+4- ask_pass	
+--------------
+If True, prompt for SSH password (for non-key-based auth)
+
+5- become vs ask_become_pass 
+------------------------------
+| Option            | Meaning                                                          |
+| ----------------- | ---------------------------------------------------------------- |
+| `become`          | **Enables privilege escalation** (e.g., using `sudo`)            |
+| `ask_become_pass` | **Prompts for the sudo password** if the target host requires it |
+
+🧠 Think of it like this:
+- become = True → “I want to use sudo (or su) to run tasks as another user, usually root”
+- ask_become_pass = True → “Ask me for the sudo password if it's required”
+
+
+
+
+
+

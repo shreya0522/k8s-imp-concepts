@@ -6,8 +6,11 @@
 ## ✅ General
 
 ✅ 1. What is AWS? What are its main services?
-📌 Answer: AWS (Amazon Web Services) is a secure, cloud services platform by Amazon that provides on-demand computing resources (servers, storage, databases, etc.) over the internet, with pay-as-you-go pricing.
-🔧 Main Categories of AWS Services:
+
+AWS (Amazon Web Services) is a secure, cloud services platform by Amazon that provides on-demand computing resources (servers, storage, databases, etc.) over the internet, with pay-as-you-go pricing.
+
+**🔧 Main Categories of AWS Services:**
+
 | Category       | Example Services             | Purpose                                     |
 | -------------- | ---------------------------- | ------------------------------------------- |
 | **Compute**    | EC2, Lambda, ECS             | Run apps and services                       |
@@ -18,13 +21,13 @@
 | **DevOps**     | CodePipeline, CloudFormation | Automation & CI/CD                          |
 | **AI/ML**      | SageMaker, Rekognition       | Build and deploy ML models                  |
 
-💬 Follow-up Qs:
-Q: What are some popular use cases of AWS?
-A: Hosting websites, backup & restore, data lakes, serverless apps, media processing, AI/ML, disaster recovery.
-Q: How does AWS billing work?
-A: It's pay-as-you-go. You’re charged based on usage (per hour/second/GB/request) depending on the service
+- 💬 Follow-up Qs:
+- Q: What are some popular use cases of AWS?
+- A: Hosting websites, backup & restore, data lakes, serverless apps, media processing, AI/ML, disaster recovery.
+- Q: How does AWS billing work?
+- A: It's pay-as-you-go. You’re charged based on usage (per hour/second/GB/request) depending on the service
 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
 
 ✅ 2. What is the difference between EC2, S3, and RDS?
 📌 Answer:
@@ -33,32 +36,37 @@ A: It's pay-as-you-go. You’re charged based on usage (per hour/second/GB/reque
 | **EC2** | Elastic Compute Cloud       | Virtual servers | Choose OS, instance type, auto-scaling                   |
 | **S3**  | Simple Storage Service      | Object storage  | Store files (e.g., images, logs) in buckets              |
 | **RDS** | Relational Database Service | Managed SQL DB  | Auto-patching, backups, supports MySQL, PostgreSQL, etc. |
-💬 Follow-up Qs:
-Q: When would you use EC2 over Lambda?
-A: Use EC2 for long-running apps or custom environments. Use Lambda for short-lived, event-based functions.
-Q: Is S3 good for storing databases?
-A: No, S3 is object storage, not designed for relational queries—use RDS or DynamoDB for databases.
 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+- 💬 Follow-up Qs:
+- Q: When would you use EC2 over Lambda?
+- A: Use EC2 for long-running apps or custom environments. Use Lambda for short-lived, event-based functions.
+- Q: Is S3 good for storing databases?
+- A: No, S3 is object storage, not designed for relational queries—use RDS or DynamoDB for databases.
+
+---
 
 ✅ 3. Explain the regions and availability zones in AWS.
-📌 Answer:
-Region: A physical location (e.g., us-east-1, ap-south-1) that contains multiple data centers.
-Availability Zone (AZ): One or more isolated data centers in a region. Designed for fault tolerance.
-Example: us-east-1 has 6 AZs (us-east-1a, 1b, 1c, ...)
-🧠 Workflow Example:
+
+* Region: A physical location (e.g., us-east-1, ap-south-1) that contains multiple data centers.
+* Availability Zone (AZ): One or more isolated data centers in a region. Designed for fault tolerance.
+
+* Example: us-east-1 has 6 AZs (us-east-1a, 1b, 1c, ...)
+
+* 🧠 Workflow Example:
 Highly available web app:
 > Deploy EC2 in multiple AZs in a single region behind an ELB.
 > Use RDS Multi-AZ for failover.
 > Store static files in S3 (regionally redundant).
 
-💬 Follow-up Qs:
-Q: Can resources in one region access another?
-A: Yes, but cross-region traffic has latency & cost. Use services like CloudFront or global tables (DynamoDB) for replication.
-Q: How do you make your app resilient to AZ failures?
-A: Use Auto Scaling Groups across AZs, enable Multi-AZ for databases, and Route53 for failover routing.
+* 💬 Follow-up Qs:
 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+* Q: Can resources in one region access another?
+* A: Yes, but cross-region traffic has latency & cost. Use services like CloudFront or global tables (DynamoDB) for replication.
+
+* Q: How do you make your app resilient to AZ failures?
+* A: Use Auto Scaling Groups across AZs, enable Multi-AZ for databases, and Route53 for failover routing.
+
+---
 
 ✅ 4. What is the shared responsibility model in AWS?
 📌 Answer: It defines who is responsible for what in cloud security:
@@ -72,12 +80,13 @@ A: Use Auto Scaling Groups across AZs, enable Multi-AZ for databases, and Route5
 Think: AWS secures the cloud, you secure what's in the cloud.
 
 💬 Follow-up Qs:
+
 Q: Who is responsible for data encryption?
 A: AWS provides tools (KMS, SSE), but you must enable and manage encryption for your data.
 Q: Is AWS responsible for EC2 security patches?
 A: No, if you're using EC2. You manage the OS and app updates.
 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
 
 ✅ 5. What are the types of cloud computing models: IaaS, PaaS, SaaS?
 📌 Answer:
@@ -87,22 +96,75 @@ A: No, if you're using EC2. You manage the OS and app updates.
 | **PaaS** | Platform as a Service       | Elastic Beanstalk, RDS | Only the app/data     |
 | **SaaS** | Software as a Service       | Gmail, Dropbox         | Nothing – just use it |
 
-🧠 Workflow Example:
+##### 🧠 Workflow Example:
+
 Hosting a Web App:
 > IaaS: You use EC2 → manage OS, install web server
 > PaaS: Use Elastic Beanstalk → deploy code, AWS handles provisioning
 > SaaS: Use tools like Salesforce → just login and use
 
-💬 Follow-up Qs:
+##### 💬 Follow-up Qs:
+
 Q: Is Lambda IaaS or PaaS?
 A: PaaS – You only upload code; AWS manages the infra, runtime, and scaling.
 Q: What’s the main advantage of SaaS?
 A: No maintenance, quick deployment, subscription-based access to ready-to-use tools.
 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------
-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
+6. What will happen if an EC2 instance is launched in a subnet that has a route to the Internet Gateway (IGW), but the instance itself does not have a public or Elastic IP? Will it be accessible from the internet? Why or why not?
 
-## ✅ Load Balancer
+Instances won't be accessible from the internet even though there's a route to the Internet Gateway (IGW).
+To be publicly accessible:
+- The subnet must have a route to IGW
+- The instance must have a public IP or Elastic IP
+- The Security Group must allow inbound traffic
+you can’t use a NAT Gateway to make an instance in a public subnet reachable from the internet if it has no public IP.
+NAT only supports outbound access, not inbound connectivity.
+
+---
+7. What is the difference between a Security Group and a Network ACL?
+
+| Feature          | Security Group (SG)          | Network ACL (NACL)       |
+| ---------------- | ---------------------------- | ------------------------ |
+| Applied to       | EC2 instances                | Subnets                  |
+| Direction        | Stateful                     | Stateless                |
+| Rule Type        | Only allow rules             | Allow and deny rules     |
+| Evaluation Order | All rules evaluated together | Rules evaluated in order |
+
+---
+8. What happens if you place a NAT Gateway in a private subnet?
+* It won’t work. A NAT Gateway must be in a public subnet (i.e., a subnet with a route to an IGW) because it needs to send/receive traffic from the internet.
+* If placed in a private subnet, it cannot function.
+
+---
+9. Can you associate multiple route tables with one subnet?
+* No. Each subnet can be associated with only one route table at a time.
+* However, one route table can be shared by multiple subnets.
+
+---
+
+10. What’s the difference between an Elastic IP and a public IP?
+* Elastic IP: Static, persistent across stop/start, must be allocated explicitly.
+* Public IP: Dynamic, changes when the instance is stopped and restarted.
+
+---
+
+11. If an EC2 instance in a private subnet needs to access S3, how can you do it without using a NAT Gateway? 
+
+Steps :
+   - (a) VPC Gateway Endpoint for S3 OR NAT 
+   - (b) IAM role 
+ 
+Why?
+| Part                          | What it does                                                                       |
+| ----------------------------- | ---------------------------------------------------------------------------------- |
+| **NAT Gateway**               | Gives EC2 in private subnet **network access** to reach S3 over the internet       |
+| **IAM Role (with S3 policy)** | Gives EC2 **permission** to actually perform actions like `GetObject`, `PutObject` |
+---
+
+# --------------------------------------------------------------------------------------------------------
+
+# ✅ Load Balancer
 
 1- ✅ What is a Load Balancer? Why do we use it?
 📌 Answer: A Load Balancer is a service or device that distributes incoming traffic across multiple targets (e.g., EC2 instances, containers, IPs) to: * Improve availability and reliability   * Prevent server overload   * Enable fault tolerance and scaling

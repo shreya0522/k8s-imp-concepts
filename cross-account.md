@@ -426,6 +426,7 @@ Even if you assume a role that has rds:Connect or rds:DescribeDBInstances, it’
 
 
 
+# misc 
 
 ### 3. **How do you enable a Lambda in Account A to access DynamoDB in Account B?**
 

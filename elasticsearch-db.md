@@ -315,7 +315,7 @@ Answer: It uses a shard allocation awareness mechanism:
 - Applying template or setting changes
 
 #### 🔁 Master Election Workflow
----------------------------
+----------------------------------
 **Step-by-Step: How Master Election Happens**
 - Cluster starts or master fails
 - All nodes with node.roles: [master] participate in an election
@@ -338,7 +338,7 @@ This makes the node master-eligible. It may or may not be elected master, depend
 - If quorum is preserved → new master elected, cluster continues
 - If quorum is lost → no master can be elected → cluster becomes unavailable
    * Indexing and cluster changes stop
-   * Read-only queries may still work temporaril
+   * Read-only queries may still work temporarily
 
 #### ✅ Best Practices for Master-Eligible Nodes
 
@@ -1072,7 +1072,86 @@ It plans what should happen to an index as it ages — where it lives, how it's 
 🧠 Interview-Ready Statement
 “ILM in Elasticsearch is a policy-driven framework that plans what happens to an index in the future — based on its age or size. It doesn’t act immediately, but automatically triggers phase transitions (hot → warm → cold → delete) as time passes. This ensures long-term performance, cost control, and hands-free retention enforcement.”
 
-------------------------------------------------------------------------------------------------------
+
+```
+Can you change the number of primary or replica shards **after an index is created**?
+=====================================================================================
+
+🔴 **Primary shards**:
+> You cannot change the number of primary shards after an index is created.
+> Primary shards are fixed at creation time.
+
+✅ **Replica shards**:
+> ✅ **Yes, you can change the number of replicas anytime.**
+
+How to change **replica shards** for an existing index:
+===========================================================
+
+1- Use this API call:
+-------------------------
+PUT /your-index-name/_settings
+{
+  "number_of_replicas": 1
+}
+
+Example:
+
+PUT /logs-2025/_settings
+{
+  "number_of_replicas": 2
+}
+
+➡️ This will create 2 replicas for each primary shard in the `logs-2025` index.
+
+❌ You cannot change replica shards via:
+------------------------------------------
+- Index templates (after creation)
+- File-based config (like elasticsearch.yml)
+- Cluster settings
+- Manual CLI inside the node
+
+---
+
+How to change **primary shards** if needed?
+----------------------------------------------------
+Since primary shards **cannot be changed directly**, you must:
+🔁 Workaround: Reindex to a new index with new primary shard count
+
+1. Create a new index with the desired number of primary shards:
+
+PUT /new-index
+{
+  "settings": {
+    "number_of_shards": 5,
+    "number_of_replicas": 1
+  }
+}
+
+2. Use the `_reindex` API:
+
+POST /_reindex
+{
+  "source": {
+    "index": "old-index"
+  },
+  "dest": {
+    "index": "new-index"
+  }
+}
+
+3. Optionally delete the old index and alias the new one.
+
+
+
+Summary:
+--------------
+| Shard Type     | Can Change After Creation? | How?                     |
+| -------------- | -------------------------- | ------------------------ |
+| Primary Shards | ❌ No                       | Reindex into a new index |
+| Replica Shards | ✅ Yes                      | Use `_settings` API      |
+
+
+```
 
 
 

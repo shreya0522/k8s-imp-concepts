@@ -1,4 +1,164 @@
 
+```
+
+ANSIBLE DIR STRUCTURE
+-----------------------
+
+An Ansible **role** is just a self-contained bundle of files organized in a standard way so that anyone (or any playbook) can pick it up and use it without hunting through dozens of unrelated files. Here’s the typical layout, with plain-English explanations and little examples of what goes where:
+
+roles/
+└── <rolename>/
+    ├── tasks/
+    │   └── main.yml
+    ├── handlers/
+    │   └── main.yml
+    ├── templates/
+    │   └── myapp.conf.j2
+    ├── files/
+    │   └── myapp-1.2.3.tar.gz
+    ├── defaults/
+    │   └── main.yml
+    ├── vars/
+    │   └── main.yml
+    ├── meta/
+    │   └── main.yml
+    └── README.md
+
+1. `tasks/main.yml`
+--------------------
+What it is: The heart of your role – this is the list of steps Ansible runs on each host.
+Why it matters: You keep all your “install, configure, start” tasks here (or in files you include from here).
+Example snippet:
+
+
+- name: Install MyApp package
+  yum:
+    name: myapp-{{ myapp_version }}
+    state: present
+
+- name: Deploy configuration file
+  template:
+    src: myapp.conf.j2
+    dest: /etc/myapp/myapp.conf
+  notify: Restart MyApp
+
+- name: Ensure service is running
+  service:
+    name: myapp
+    state: started
+    enabled: true
+
+
+### 2. `handlers/main.yml`
+---------------------------
+
+What it is: Special tasks that only run **once**, after all normal tasks are done, *but only if* you’ve “notified” them.
+Why it matters: Keeps restart/reload logic in one spot so you don’t accidentally restart a service multiple times.
+Example snippet:
+
+# roles/myrole/handlers/main.yml
+- name: Restart MyApp
+  service:
+    name: myapp
+    state: restarted
+
+
+
+### 3. `templates/`
+---------------------
+**What it is:** Jinja2 template files (ending in `.j2`) that get rendered with your variables.
+**Why it matters:** Lets you bake in variables, loops, or conditionals into config files.
+**Example file:**
+
+# roles/myrole/templates/myapp.conf.j2
+[server]
+port = {{ myapp_port }}
+log_level = {{ myapp_log_level }}
+
+Let’s say you have a service that can optionally run in TLS mode, depending on a variable you set in your playbook or inventory. In your templates/ folder you might have:
+# roles/myrole/templates/myapp.conf.j2
+
+[server]
+port = {{ myapp_port }}
+
+{% if enable_tls %}
+# TLS is turned on
+tls_enabled = true
+tls_cert_file = {{ tls_cert_path }}
+tls_key_file  = {{ tls_key_path }}
+{% else %}
+# TLS is turned off
+tls_enabled = false
+{% endif %}
+
+# Only include debug settings if log_level is DEBUG
+{% if myapp_log_level == "DEBUG" %}
+debug_mode = true
+debug_output = /var/log/myapp/debug.log
+{% endif %}
+
+
+### 4. `files/`
+-------------------
+**What it is:** “Raw” files to copy exactly as-is (no templating).
+**Why it matters:** Use it for binaries, archives, SSL certs—anything you don’t need to substitute variables into.
+**Example usage in tasks:**
+
+- name: Upload MyApp tarball
+  copy:
+    src: myapp-1.2.3.tar.gz
+    dest: /tmp/
+
+
+
+### 5. `defaults/main.yml`
+--------------------------
+**What it is:** Low-priority, “sensible fallback” variables.
+**Why it matters:** Everyone can override these via playbook vars, inventory, or extra-vars—so there’s no surprise if someone needs to tweak a value.
+**Example content:**
+
+
+# roles/myrole/defaults/main.yml
+myapp_version: "1.2.3"
+myapp_port: 8080
+myapp_log_level: "INFO"
+
+
+---
+
+### 6. `vars/main.yml`
+---------------------
+**What it is:** Higher-priority, almost “hard-coded” variables.
+**Why it matters:** Use this for values you rarely expect users to change (like internal file paths or package names). They override defaults and most other vars, but *can* be overridden with `-e`.
+**Example content:**
+
+# roles/myrole/vars/main.yml
+install_dir: /opt/myapp
+service_user: myapp
+
+
+### 7. `meta/main.yml`
+---------------------
+**What it is:** Metadata about the role itself (author, supported platforms) and any role dependencies.
+**Why it matters:** Helps when you publish to Ansible Galaxy or if this role needs another role to run first.
+**Example content:**
+
+# roles/myrole/meta/main.yml
+galaxy_info:
+  author: you
+  description: Installs and configures MyApp
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: Ubuntu
+      versions: [focal, jammy]
+dependencies:
+  - role: geerlingguy.java
+
+```
+
+
+
 ---
 
 ### ✅ **Basic Ansible Interview Questions**

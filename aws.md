@@ -575,6 +575,11 @@ A: IAM User: An IAM user is an identity within AWS that represents an individual
    IAM Group: An IAM group is a collection of IAM users. By organizing IAM users into groups, you can manage permissions collectively. IAM groups make it easier to assign permissions to multiple users simultaneously. Users within an IAM group inherit the permissions assigned to that group. For example, you can create a "Developers" group and assign appropriate policies to grant permissions required for developers across your organization.
    IAM Policy: An IAM policy is a document that defines permissions and access controls in AWS. IAM policies can be attached to IAM users, IAM roles, and IAM groups to define what actions can be performed on which AWS resources. IAM policies use JSON (JavaScript Object Notation) syntax to specify the permissions and can be created and managed independently of the users, roles, or groups. IAM policies consist of statements that include the actions allowed or denied, the resources on which the actions can be performed, and any additional conditions.
 
+```
+Policy = What can be done
+Role = Who can do it (and how)
+```
+
 Q: You have a private subnet in your VPC that contains a number of instances that should not have direct internet access. However, you still need to be able to securely access these instances for administrative purposes. How would you set up a bastion host to facilitate this access?
 
 A: To securely access the instances in the private subnet, you can set up a bastion host (also known as a jump host or jump box). The bastion host acts as a secure entry point to your private subnet. Here's how you can set up a bastion host:
@@ -1620,7 +1625,7 @@ User clicks another link → request goes to ALB → ALB reads the cookie → st
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 6 - 🔥 Advanced / Tricky ALB Interview Questions & Answers
-
+```
 1. Q: Can ALB route requests to Lambda functions?
 A: Yes. ALB supports Lambda as a target type — this enables HTTP-based invocation of serverless functions with all ALB routing features.
 2. Q: How does ALB determine if a target is unhealthy?
@@ -1649,6 +1654,7 @@ A: Up to 100 rules per listener, including the default rule.
 A: ✅ Yes, by defining multiple rules on the same listener — each with different matching conditions (e.g., path /api → TG1, /admin → TG2).
 11. Q: Can ALB terminate TLS at the edge and re-encrypt to backend?
 A: ✅ Yes. This is called TLS re-encryption: * ALB terminates HTTPS  * Then sends HTTPS to backend EC2 (you must upload backend cert to ACM)
+```
 ✅ What does “ALB terminates TLS and re-encrypts to backend” mean?
 > 🔐 This is called TLS re-encryption.
 

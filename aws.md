@@ -2186,7 +2186,7 @@ A. 📌 Quick Answer: When a Spot Instance receives a termination notice, you ha
 🧭 FULL WORKFLOW
 ✅ Step-by-step:
   1- Interruption notice arrives (via metadata or CloudWatch Events) 
-      * you can poll: ```http://169.254.169.254/latest/meta-data/spot/instance-action```
+      * you can poll: ```htt169.254.169.254/lp://atest/meta-data/spot/instance-action```
       * Or use an Amazon EventBridge Rule to detect termination: 
 ```
 {

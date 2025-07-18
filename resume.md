@@ -13,12 +13,14 @@ For alerting, I set up contact points using Gmail SMTP and Google Chat for criti
 Finally, I designed cloud-native security groups to expose Node Exporter only to Prometheus, and locked down Grafana access to trusted IPs or VPN.
 The setup significantly improved observability, enabled proactive alerting, and eliminated manual drift in monitoring configuration.
 
-Optional Add-on if asked “Any challenge you solved?”:
+Optional Add-on if asked “Any challenge you solved?”
+----------------------------------------------------
 One challenge was inconsistent init systems across Ubuntu versions — some used systemd, others init.d. I solved this by shipping Node Exporter as a static binary and using Ansible’s fact-based conditionals to apply the correct service file dynamically.
 ```
 
-> I wrote the role to automate observability across all production hosts. Its immediate goal was to deploy Node Exporter to every running instance .  The most critical metric we needed right away was disk-space utilisation (several incidents had been caused by silent volume fill-ups),but the exporter also gave us CPU, memory, and networking insight.
-By codifying this in an Ansible role we eliminated repetitive, manual installs and ensured new servers were monitored automatically via our dynamic inventory.”
+> I wrote the role to automate observability across all production hosts. Its immediate goal was to deploy Node Exporter to every running instance .  
+> The most critical metric we needed right away was disk-space utilisation (several incidents had been caused by silent volume fill-ups),but the exporter also gave us CPU, memory, and networking insight. 
+> By codifying this in an Ansible role we eliminated repetitive, manual installs and ensured new servers were monitored automatically via our dynamic inventory.”
 
 2. What monitoring tool(s) did your role configure?
 > Node Exporter on all Ubuntu application and database nodes (73 servers). Prometheus (scrape-target configuration + systemd service) and Grafana (provisioning of data-source and default dashboards)
@@ -48,7 +50,7 @@ roles/
    └─ meta/
       └─ main.yml          # galaxy info & dependency stub
 ```
-I keep defaults for sane global values, vars for anything driven by facts or inventory, and a single restart handler that individual tasks notify only when their template or package changes.
+I keep defaults for same global values, vars for anything driven by facts or inventory, and a single restart handler that individual tasks notify only when their template or package changes.
 
 5. What modules did you use in the role?
 ```
@@ -258,7 +260,7 @@ But you can also…
 - Compose new labels by combining parts of other labels
 - Overwrite the built-in __address__ so you scrape a different port
 
-the common example is “take the EC2 Name tag and turn it into a nice server_name label”—but relabeling is really Prometheus’s flexible label editor/filter that runs before (and in metric relabeling, after) scraping.
+the common example is “take the EC2 Name tag and turn it into a nice server_name label” — but relabeling is really Prometheus’s flexible label editor/filter that runs before (and in metric relabeling, after) scraping.
 
 
 
@@ -450,6 +452,16 @@ Writing to an append-only log is much quicker and simpler than updating a full d
 
 E. You can tune how much WAL you keep
 Flags like --storage.tsdb.min-block-duration and --storage.tsdb.wal-compression let you control how often Prometheus rolls segments into its main database and how many WAL files to retain.
+
+
+NOTE:
+-----
+WAL only helps recover data that was scraped just before a crash, not compensate for time while Prometheus was off
+
+Can Prometheus fetch missing metrics after it restarts?
+--------------------------------------------------------
+No. Prometheus is a "pull-based" system. If it missed a scrape interval, it cannot go back in time to fetch old metrics from exporters. Exporters don’t store history — they just expose current values.
+
 
 
 2. Alerting 

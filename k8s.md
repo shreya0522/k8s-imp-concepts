@@ -1748,6 +1748,21 @@ affinity:
 ```
 > ➡️ This rule prevents multiple web Pods on the same node.
 
+
+click for node affinity: https://github.com/piyushsachdeva/CKA-2024/blob/main/Resources/Day15/readme.md
+watch video for most effective learning specially demo part & the part in which he tells the diffrence b/w taints tolerations & node affinity 
+
+```
+NOTE:  
+-----
+Jb hm taints & toleration ki baat krte h to ye guarantee ni hoti h ki POD A , NODE A pe he schedule ho , NODE B  pe bhi same taint ho skta h NODE A jaisa. to pod pe toleration lga rhe to dono node me se kisi bhi node pe schedule ho skta h so iss case k liye node affinity aata h and two properties takes care of it 
+- requiredDuringSchedulingIgnoredDuringExecution
+- preferredDuringSchedulingIgnoredDuringExecution
+"ignored duting execution" is same on both properties that means if pod has been scheduled on a node , even after that there has been changed in the node or anything , it wont impact the existing pods those pods will keep on running and it will impact the newer pods that are yet to be scheduled or we will be sheduling after we have set the affinity.
+"required during scheduling" means during scheduling decision it will make sure to match the affinity. so if the label matches then only it will schedule the pod on that node else it wont schedule the pod at all and throw an error.
+"preferred during scheduling" means if the label matches then it will schedule the pod and if doesnt then it will schedule the pod anywhere else 
+```
+
 ❓ Follow-up Questions:
 --------------------------
 Q: What’s the difference between preferred and required?
@@ -5149,4 +5164,14 @@ kubectl config view
 
 ---
 
-Let me know if you want help **merging multiple kubeconfigs**, or **setting up role-based access (RBAC)** tied to contexts.
+# -------------------------------------------------------
+
+# HPA , VPA 
+
+Watch video for more clarity altho video has covered few imp points :
+- HPA is included in k8s , but VPA you have to download separately 
+- HPA means  incresing no of pods on basis of cpu , mem
+- VPA means increasing size/ capacity of exiting pod 
+- before implementing HPA makes sure Metric server pod is present in kube-system namespace , as HPA fetches metrics from there only 
+- HPA scales on basis of few metrics only ie cpu mem so now a days famous is keda autoscaling on basis of EVENTS
+

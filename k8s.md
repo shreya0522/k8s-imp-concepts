@@ -1646,8 +1646,42 @@ Q: What plugin would spread pods across zones?
 -----------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # 3 - 🚫  How do Taints and Tolerations influence scheduling decisions?
+Remember: with taint & toleration nodes take decision that which pod to accept for schedule 
+          with node selectors pod decides which node it wants to go. there is some restrictions with node selector like we 
+          cant use ceratin operators like "and" "or" , we cany use some expressions etc. so we use concept like anti 
+          affinity 
 
-**Taints** are **set on nodes** to repel Pods. **Tolerations** are added to **Pods** to allow scheduling on tainted nodes. A Pod must tolerate all taints on a node to be scheduled there.
+**Taints** are **set on nodes** to repel Pods. **Tolerations** are added to **Pods** to allow scheduling on tainted nodes. A Pod must tolerate all taints on a node to be scheduled there. Think of taints as "only you are allowed" signs on your Kubernetes nodes
+
+Exp:
+----
+step 1 : kubectl taint nodes node1 key=gpu:NoSchedule
+step 2 : Adding toleration to the pod:
+
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: redis
+  name: redis
+spec:
+  containers:
+  - image: redis
+    name: redis
+  tolerations:        -------------------> here 
+  - key: "gpu"
+    operator: "Equal"
+    value: "true"
+    effect: "NoSchedule"      ----------------> imp
+
+Note
+------
+we have effect as: 
+1- noSchedule: works on newer pods if they tolerate the taint.
+2- preferNoschedule:  no guarantee ie Kubernetes will try to avoid scheduling the pod on the node, but it’s not guaranteed.
+3- noExecute: works on all existing/new pods ie New pods will not be scheduled, and existing pods will be evicted if they don’t tolerate the taint.
+
+command to delete taint: kubectl taint nodes node1 key=gpu:NoSchedule-  (just by adding " - " at end )
 
 ⚙️ Workflow:
 ----------------

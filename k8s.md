@@ -185,6 +185,13 @@ CRI ensures flexibility—you can plug in different runtimes without changing Ku
  Behind-the-scenes:
 Kubelet makes calls to containerd using the CRI to manage containers in Pods.
 containerd runs a CRI plugin (containerd-shim) that implements those gRPC endpoints. So whenever the kubelet issues a CRI call, containerd’s CRI plugin receives it and uses its own internals (and ultimately an OCI runtime like runc) to actually create, start, stop, or remove the containers in your Pods
+
+what does above statement means in simple terms ?
+- CRI = a standard set of gRPC APIs. The kubelet uses these APIs to say things like: “Create this Pod’s container” , “Start this container” , “Stop this container” , “Delete this container”
+
+- containerd CRI plugin = containerd is a container runtime (like Docker, but leaner). It has a CRI plugin (run via containerd-shim). This plugin is the translator: it receives kubelet’s CRI calls and knows how to handle them inside containerd.
+
+- OCI Runtime (runc) = containerd itself doesn’t directly run containers. Instead, it calls an OCI runtime (most commonly runc). runc is the low-level tool that actually creates the container process on the Linux kernel using cgroups, namespaces, etc.
 ```
 -----------------------------------------------------------------
 
